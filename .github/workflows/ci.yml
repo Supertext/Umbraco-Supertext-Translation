@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build package and demo
+        run: |
+          dotnet build src/Supertext.Umbraco.Translation/Supertext.Umbraco.Translation.csproj -c Release
+          dotnet build demo/SupertextDemo/SupertextDemo.csproj -c Release
+      - name: Unit tests
+        run: dotnet test tests/Supertext.Umbraco.Translation.Tests -c Release
+      - name: Backoffice modules syntax
+        run: for f in src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/*.js; do node --check --input-type=module < "$f"; done
+      - name: Demo entrypoint syntax
+        run: sh -n demo/entrypoint.sh

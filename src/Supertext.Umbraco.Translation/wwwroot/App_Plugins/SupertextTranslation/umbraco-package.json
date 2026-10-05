@@ -1,0 +1,48 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "Supertext Translation",
+  "id": "Supertext.Umbraco.Translation",
+  "version": "0.1.0",
+  "allowTelemetry": true,
+  "extensions": [
+    {
+      "type": "workspaceAction",
+      "kind": "default",
+      "alias": "Supertext.WorkspaceAction.Translate",
+      "name": "Translate with Supertext (workspace button)",
+      "api": "/App_Plugins/SupertextTranslation/workspace-action.js",
+      "weight": 50,
+      "meta": {
+        "label": "Translate with Supertext",
+        "look": "secondary"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.WorkspaceAlias",
+          "match": "Umb.Workspace.Document"
+        }
+      ]
+    },
+    {
+      "type": "entityAction",
+      "kind": "default",
+      "alias": "Supertext.EntityAction.Translate",
+      "name": "Translate with Supertext (document actions)",
+      "api": "/App_Plugins/SupertextTranslation/entity-action.js",
+      "forEntityTypes": [
+        "document"
+      ],
+      "weight": 650,
+      "meta": {
+        "icon": "icon-globe",
+        "label": "Translate with Supertext"
+      }
+    },
+    {
+      "type": "modal",
+      "alias": "Supertext.Modal.Translate",
+      "name": "Translate with Supertext dialog",
+      "element": "/App_Plugins/SupertextTranslation/translate-modal.js"
+    }
+  ]
+}
