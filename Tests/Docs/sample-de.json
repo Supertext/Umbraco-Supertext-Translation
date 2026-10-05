@@ -1,0 +1,15 @@
+{
+ "Features": "Funktionen",
+ "<h2>Rich Text Row</h2>\n<p>There is a simple rich text row for writing your usual formatted content in a WYSIWIG style with the usual settings including but not limited to: </p>\n<p><strong>Bold</strong></p>\n<p><em>Italic</em></p>\n<p style=\"text-align: left;\">Left align</p>\n<p style=\"text-align: right;\">Right align</p>\n<ul>\n<li>Bulleted List</li>\n</ul>\n<ol>\n<li>Ordered List</li>\n</ol>": "<h2>Rich-Text-Zeile</h2>\n<p>Es gibt eine einfache Rich-Text-Zeile, in der Sie Ihre gewohnten formatierten Inhalte im WYSIWYG-Stil mit den üblichen Einstellungen schreiben können, unter anderem: </p>\n<p><strong>Fett</strong></p>\n<p><em>Kursiv</em></p>\n<p style=\"text-align: left;\">Linksbündig</p>\n<p style=\"text-align: right;\">Rechtsbündig</p>\n<ul>\n<li>Aufzählungsliste</li>\n</ul>\n<ol>\n<li>Nummerierte Liste</li>\n</ol>",
+ "Image Row Example": "Beispiel für eine Bildzeile",
+ "<h2>Image Row</h2>\n<p>You can use the image row to render a full width image.</p>": "<h2>Bildzeile</h2>\n<p>Mit der Bildzeile können Sie ein Bild in voller Breite darstellen.</p>",
+ "What&#39;s next in C# - Mads Torgersen @ Umbraco Codegarden 2022": "What&#39;s next in C# – Mads Torgersen @ Umbraco Codegarden 2022",
+ "<h2>Video Row</h2>\n<p>This lets you embed a YouTube video by just entering the normal URL of the video, and it just renders the preview image of it at first. Then when you click on it, it loads it in as the iframe, which is better for the end user as it doesn't download all of the YouTube assets until it is needed.</p>": "<h2>Videozeile</h2>\n<p>Damit können Sie ein YouTube-Video einbetten, indem Sie einfach die normale URL des Videos eingeben. Zunächst wird nur das Vorschaubild angezeigt. Erst wenn Sie darauf klicken, wird das Video als iframe geladen. Das ist besser für die Besucherinnen und Besucher, weil die YouTube-Dateien erst heruntergeladen werden, wenn sie gebraucht werden.</p>",
+ "<h2>Code Snippet Row</h2>\n<p>There is a code snippet row to enable you to easily share code snippets in your website.</p>": "<h2>Code-Snippet-Zeile</h2>\n<p>Mit der Code-Snippet-Zeile können Sie auf Ihrer Website ganz einfach Codebeispiele zeigen.</p>",
+ "Code from the codeSnippetRow.cshtml file": "Code aus der Datei codeSnippetRow.cshtml",
+ "<h2>Image Carousel Row</h2>\n<p>You can add a simple image carousel to a page by using the Image Carousel Row. In this row you have a multi image picker and you just choose the images you want to display.</p>": "<h2>Bildkarussell-Zeile</h2>\n<p>Mit der Bildkarussell-Zeile fügen Sie einer Seite ein einfaches Bildkarussell hinzu. In dieser Zeile wählen Sie in einer Mehrfach-Bildauswahl einfach die Bilder aus, die angezeigt werden sollen.</p>",
+ "in this starter kit": "in diesem Starter-Kit",
+ "Home": "Startseite",
+ "Clean Starter Kit": "Clean Starter-Kit",
+ "For Umbraco": "Für Umbraco"
+}
