@@ -112,7 +112,11 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
       <umb-body-layout headline="Translate with Supertext">
         <div id="main">
           ${this._status && !this._status.hasApiKey
-            ? html`<div class="warning">No Supertext API key is configured. Ask your administrator to set <code>SUPERTEXT_API_KEY</code>.</div>`
+            ? html`<div class="warning">
+                No Supertext API key is configured. Ask your administrator to set <code>SUPERTEXT_API_KEY</code>.
+                No Supertext account yet? <a href="https://www.supertext.com/person/en/account/signin" target="_blank" rel="noopener">Create one at supertext.com</a>.
+                Generate your API key at <a href="https://www.supertext.com/en/integrations/api" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (requires the Admin role).
+              </div>`
             : nothing}
           ${this._error ? html`<div class="warning">${this._error}</div>` : nothing}
           ${this._languages.length ? this._renderForm() : html`<uui-loader></uui-loader>`}
@@ -188,6 +192,7 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
     .language { display: flex; align-items: center; gap: var(--uui-size-space-3); padding: var(--uui-size-space-2) 0; }
     select { width: 100%; padding: var(--uui-size-space-3); font: inherit; border: 1px solid var(--uui-color-border); border-radius: var(--uui-border-radius); background: var(--uui-color-surface); color: var(--uui-color-text); }
     .warning { padding: var(--uui-size-space-4); border-radius: var(--uui-border-radius); background: var(--uui-color-warning); color: var(--uui-color-warning-contrast); }
+    .warning a { color: inherit; text-decoration: underline; }
     .hint { color: var(--uui-color-text-alt); margin: 0; }
   `;
 }

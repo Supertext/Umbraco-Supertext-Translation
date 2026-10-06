@@ -143,7 +143,7 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
         var apiKey = AuthPrefix().Replace(Options.EffectiveApiKey, string.Empty);
         if (apiKey == string.Empty)
         {
-            throw new SupertextException("No Supertext API key configured (Supertext:ApiKey or SUPERTEXT_API_KEY).");
+            throw new SupertextException("No Supertext API key configured (Supertext:ApiKey or SUPERTEXT_API_KEY). Generate one at https://www.supertext.com/en/integrations/api (requires the Admin role).");
         }
         var baseUri = new Uri(Options.EffectiveEndpoint);
 

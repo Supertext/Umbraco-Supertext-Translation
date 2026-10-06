@@ -8,7 +8,11 @@ public sealed class SupertextOptions
 {
     public const string SectionName = "Supertext";
 
-    /// <summary>Supertext API key; shown by Supertext as "Supertext-Auth-Key &lt;key&gt;", either form works.</summary>
+    /// <summary>
+    /// Supertext API key; shown by Supertext as "Supertext-Auth-Key &lt;key&gt;", either form works.
+    /// Create an account at https://www.supertext.com/person/en/account/signin and generate the key at
+    /// https://www.supertext.com/en/integrations/api (supertext.com → Integrations → API; requires the Admin role).
+    /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>API base URL. Live: https://api.supertext.com/v1/ (also api.staging… / api.testing…).</summary>

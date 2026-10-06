@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- The "No Supertext API key" warning in the dialog, the missing-key error, the config comments and the docs now link to Supertext account signup and API key generation (supertext.com → Integrations → API, Admin role required).
 
 ## 0.1.0 — 2026-10-05
 - First version for Umbraco 17/18: **Translate with Supertext** in the document workspace and actions menu, with a dialog to choose source and target languages.

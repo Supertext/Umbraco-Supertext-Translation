@@ -23,6 +23,8 @@ Languages that already have content are only replaced after a confirmation. If S
 | [User guide](docs/USER_GUIDE.md) | Editors: translating, reviewing, publishing, what gets translated |
 | [Developer guide](docs/DEVELOPER.md) | Architecture, API protocol, local setup, tests, screenshots, demo deployment |
 
+You need a Supertext account and API key: no account yet? [Create one at supertext.com](https://www.supertext.com/person/en/account/signin). Generate your API key at [supertext.com → Integrations → API](https://www.supertext.com/en/integrations/api) (requires the Admin role).
+
 Quick start (not on NuGet yet — build the package first, see the installation guide):
 
 ```bash

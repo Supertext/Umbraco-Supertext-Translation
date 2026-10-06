@@ -11,7 +11,7 @@ For administrators setting up the package on an Umbraco site.
 | Umbraco | 17 LTS (tested), 18 (supported) |
 | .NET | 10 |
 | Languages | At least two languages, and document types that **vary by culture** |
-| Supertext | An account with an API key (supertext.com → Integrations → API) |
+| Supertext | An account with an API key — see [Set the API key](#2-set-the-api-key) |
 | Network | The web server must reach `https://api.supertext.com` over HTTPS |
 
 ## 1. Add the package
@@ -32,7 +32,12 @@ Restart the site. The package registers itself; there is nothing to enable in th
 
 ## 2. Set the API key
 
-Either:
+Get the key first:
+
+1. **Supertext account:** no account yet? [Create one at supertext.com](https://www.supertext.com/person/en/account/signin) (log in or create an account with your e-mail address).
+2. **API key:** generate it at [supertext.com → Integrations → API](https://www.supertext.com/en/integrations/api). This requires the **Admin** role in your Supertext account; ask your Supertext account admin otherwise.
+
+Then configure it, either:
 
 - **Environment variable (recommended):** `SUPERTEXT_API_KEY=...`. It wins over the setting and keeps the key out of your repository.
 - **appsettings.json:**
@@ -43,7 +48,7 @@ Either:
   }
   ```
 
-Supertext shows the key as `Supertext-Auth-Key <key>`; paste it with or without that prefix. The dialog warns editors when no key is configured.
+Supertext shows the key as `Supertext-Auth-Key <key>`; paste it with or without that prefix. The dialog warns editors when no key is configured and links to the account signup and API key pages.
 
 ## 3. Languages
 
@@ -122,8 +127,8 @@ Translations already made stay in place; they are ordinary Umbraco content.
 | Symptom | Cause / fix |
 | --- | --- |
 | The button doesn't appear | Hard-refresh the backoffice after installing. Check the user's Update permission on the page. |
-| *No Supertext API key is configured* | Set `SUPERTEXT_API_KEY` (or `Supertext:ApiKey`) and restart. |
-| *Authentication failed* | Wrong key; paste it again (the prefix is optional). |
+| *No Supertext API key is configured* | [Generate a key](https://www.supertext.com/en/integrations/api) (Admin role required), set `SUPERTEXT_API_KEY` (or `Supertext:ApiKey`) and restart. |
+| *Authentication failed* | Wrong or revoked key; paste it again (the prefix is optional) or [generate a new one](https://www.supertext.com/en/integrations/api). |
 | *Too many requests* | Supertext's per-second limit; the package retries automatically (up to 4 times). |
 | *Timed out waiting for the Supertext translation* | Very long pages; raise `PollTimeoutSeconds` (and proxy timeouts). |
 | *does not vary by culture* | Enable *Allow vary by culture* on the document type (see *Languages*). |
