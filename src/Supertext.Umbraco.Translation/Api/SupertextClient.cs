@@ -7,7 +7,22 @@ using Supertext.Umbraco.Translation.Configuration;
 
 namespace Supertext.Umbraco.Translation.Api;
 
-public sealed class SupertextException(string message, Exception? inner = null) : Exception(message, inner);
+/// <summary>
+/// An error shown to editors. <see cref="Exception.Message"/> is the English text (logs, API
+/// clients); <see cref="Code"/>, <see cref="Args"/> and <see cref="Detail"/> let the backoffice
+/// show it in the editor's language (keys <c>supertext_error_&lt;code&gt;</c> in
+/// <c>App_Plugins/SupertextTranslation/lang/</c>).
+/// </summary>
+public sealed class SupertextException(string code, string message, string[]? args = null, string? detail = null, Exception? inner = null)
+    : Exception(detail is null or "" ? message : message + " (" + detail + ")", inner)
+{
+    public string Code { get; } = code;
+
+    public string[] Args { get; } = args ?? [];
+
+    /// <summary>Text returned by the Supertext API (not translated).</summary>
+    public string? Detail { get; } = detail is "" ? null : detail;
+}
 
 /// <summary>
 /// Supertext AI file translation (https://api.supertext.com/v1/), the same protocol as the
@@ -87,7 +102,7 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
         var fileId = (await ReadJsonAsync(response, ct)).TryGetProperty("file_id", out var id) ? id.ToString() : string.Empty;
         if (fileId == string.Empty)
         {
-            throw new SupertextException("Supertext did not return a file id.");
+            throw new SupertextException("noFileId", "Supertext did not return a file id.");
         }
         return fileId;
     }
@@ -104,14 +119,14 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
             switch (status)
             {
                 case "done": return;
-                case "error": throw new SupertextException("Supertext failed to translate the document.");
-                case "limit_exceeded": throw new SupertextException("Your Supertext translation limit is exceeded.");
-                case "deleted": throw new SupertextException("The Supertext file was deleted before it could be downloaded.");
+                case "error": throw new SupertextException("translationFailed", "Supertext failed to translate the document.");
+                case "limit_exceeded": throw new SupertextException("limitExceeded", "Your Supertext translation limit is exceeded.");
+                case "deleted": throw new SupertextException("fileDeleted", "The Supertext file was deleted before it could be downloaded.");
             }
             await Task.Delay(interval, ct);
         }
         while (DateTime.UtcNow < deadline);
-        throw new SupertextException("Timed out waiting for the Supertext translation.");
+        throw new SupertextException("timeout", "Timed out waiting for the Supertext translation.");
     }
 
     private async Task<string> DownloadAsync(string fileId, CancellationToken ct)
@@ -120,7 +135,7 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
         var body = await response.Content.ReadAsStringAsync(ct);
         if (string.IsNullOrWhiteSpace(body))
         {
-            throw new SupertextException("The translated document was empty.");
+            throw new SupertextException("emptyTranslation", "The translated document was empty.");
         }
         return body;
     }
@@ -143,7 +158,7 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
         var apiKey = AuthPrefix().Replace(Options.EffectiveApiKey, string.Empty);
         if (apiKey == string.Empty)
         {
-            throw new SupertextException("No Supertext API key configured (Supertext:ApiKey or SUPERTEXT_API_KEY). Generate one at https://www.supertext.com/en/integrations/api (requires the Admin role).");
+            throw new SupertextException("noApiKey", "No Supertext API key configured (Supertext:ApiKey or SUPERTEXT_API_KEY). No Supertext account yet? Create one at https://www.supertext.com/person/en/account/signin. Generate your API key at https://www.supertext.com/en/integrations/api (supertext.com → Integrations → API, requires the Admin role).");
         }
         var baseUri = new Uri(Options.EffectiveEndpoint);
 
@@ -160,7 +175,7 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
             }
             catch (Exception e) when (e is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
             {
-                throw new SupertextException("Could not reach Supertext: " + e.Message, e);
+                throw new SupertextException("unreachable", "Could not reach Supertext.", detail: e.Message, inner: e);
             }
             if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt >= RateLimitRetries)
             {
@@ -178,22 +193,18 @@ public sealed partial class SupertextClient(HttpClient http, IOptionsMonitor<Sup
         {
             return response;
         }
-        var message = code switch
+        var (errorCode, message) = code switch
         {
-            401 or 403 => "Authentication failed. Please check the Supertext API key.",
-            404 => "The requested Supertext resource was not found.",
-            413 => "The content is too large for Supertext to translate in one go.",
-            429 => "Too many requests to Supertext. Please try again shortly.",
-            >= 500 => "The Supertext service is currently unavailable.",
-            _ => $"Supertext answered with HTTP {code}.",
+            401 or 403 => ("authFailed", "Authentication failed. Please check the Supertext API key. No Supertext account yet? Create one at https://www.supertext.com/person/en/account/signin. Generate your API key at https://www.supertext.com/en/integrations/api (supertext.com → Integrations → API, requires the Admin role)."),
+            404 => ("notFound", "The requested Supertext resource was not found."),
+            413 => ("tooLarge", "The content is too large for Supertext to translate in one go."),
+            429 => ("rateLimited", "Too many requests to Supertext. Please try again shortly."),
+            >= 500 => ("unavailable", "The Supertext service is currently unavailable."),
+            _ => ("http", $"Supertext answered with HTTP {code}."),
         };
         var detail = Tags().Replace(await response.Content.ReadAsStringAsync(ct), string.Empty).Trim();
         response.Dispose();
-        if (detail != string.Empty)
-        {
-            message += " (" + (detail.Length > 200 ? detail[..200] : detail) + ")";
-        }
-        throw new SupertextException(message);
+        throw new SupertextException(errorCode, message, [code.ToString(System.Globalization.CultureInfo.InvariantCulture)], detail.Length > 200 ? detail[..200] : detail);
     }
 
     private static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response, CancellationToken ct)

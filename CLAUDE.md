@@ -23,6 +23,10 @@ Everywhere an administrator enters or is told about the API key — the settings
 
 Wording: "No Supertext account yet? Create one at supertext.com. Generate your API key at supertext.com → Integrations → API (requires the Admin role)." In the UI, links open in a new tab (`target="_blank" rel="noopener"`); where the CMS shows plain text only, use the bare URLs. New screens or messages that mention the key get the links too.
 
+## UI languages (always)
+
+The plugin's own UI (buttons, panels, dialogs, settings, permissions, messages) is available in English, German, French and Italian through the CMS's own translation mechanism, so it follows the user's back-end language. New or changed strings get all four languages in the same commit. Formal address (Sie, vous, Lei), the CMS's own terms in each language, "Supertext", placeholders and URLs never translated.
+
 ## Plugin list (always)
 
 `README.md` ends with the shared list of all Supertext plugins (between the `<!-- supertext-plugins:start -->` and `<!-- supertext-plugins:end -->` markers). It is identical in every Supertext plugin repo: when a plugin is added, renamed or its description changes, update the list in **all** repos, not just this one.
@@ -79,4 +83,5 @@ Lessons from testing against the live API (October 2026), to apply in every plug
 - Explicit action, not a hook: Umbraco has no "create language version" step, so editors use **Translate with Supertext** (workspace button and document actions menu). The backoffice extension is plain ES modules in `src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/` (no build step); the server side is `ContentTranslator` behind `SupertextTranslationController` (Management API, `/umbraco/management/api/v1/supertext/...`).
 - Block values: rich text inside blocks arrives double-encoded (a JSON string containing JSON) and `editorAlias` is usually null, so the element type decides the editor. Keep the `(object?)` casts in `CollectBlockNode`: `JsonNode` converts implicitly from string.
 - The demo's Clean starter kit is single-language; `DemoSetupService` makes it multilingual on every start. Clean writes its views only during its first-boot migration, so `demo/SupertextDemo/Views/` is committed.
+- UI strings live in `wwwroot/App_Plugins/SupertextTranslation/lang/` (`en.js`, `de.js`, `fr.js`, `it.js`); server errors shown to editors are `SupertextException` codes with a `supertext_error_<code>` text there. `node Tests/Localization/check-keys.mjs` checks them.
 - Test against the local stand-in (`Tests/Docs/stand-in.mjs`, `STAND_IN_PREFIX=1` marks untranslated text) before the live API.

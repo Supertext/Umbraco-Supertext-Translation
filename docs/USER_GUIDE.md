@@ -2,6 +2,8 @@
 
 For editors. Once an administrator has installed the package (see [INSTALLATION.md](INSTALLATION.md)), you translate a page with one button. Supertext writes the other language versions, and you review and publish them as usual.
 
+The Supertext button, dialog and messages follow the interface language you chose in your Umbraco profile (English, German, French or Italian). The screenshots show the English interface.
+
 ## Translate a page
 
 1. Open the page in the **Content** section. Save your changes first: the page is translated as saved.

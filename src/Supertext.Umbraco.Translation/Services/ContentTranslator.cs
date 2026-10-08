@@ -18,7 +18,7 @@ public enum TranslationStatus
     Failed,
 }
 
-public sealed record CultureTranslationResult(string Culture, TranslationStatus Status, int Fields, string? Error);
+public sealed record CultureTranslationResult(string Culture, TranslationStatus Status, int Fields, string? Error, SupertextException? Exception = null);
 
 /// <summary>
 /// Translates a document from one culture into others: copies every culture-variant
@@ -40,14 +40,14 @@ public sealed class ContentTranslator(
     public async Task<IReadOnlyList<CultureTranslationResult>> TranslateAsync(
         Guid documentKey, string sourceCulture, IReadOnlyCollection<string> targetCultures, bool overwrite, int userId, CancellationToken ct = default)
     {
-        var content = contentService.GetById(documentKey) ?? throw new SupertextException("Document not found.");
+        var content = contentService.GetById(documentKey) ?? throw new SupertextException("documentNotFound", "Document not found.");
         if (!content.ContentType.VariesByCulture())
         {
-            throw new SupertextException($"The document type \"{content.ContentType.Name}\" does not vary by culture, so it has no separate language versions to translate into.");
+            throw new SupertextException("invariantDocumentType", $"The document type \"{content.ContentType.Name}\" does not vary by culture, so it has no separate language versions to translate into.", [content.ContentType.Name ?? content.ContentType.Alias]);
         }
         if (!content.IsCultureAvailable(sourceCulture))
         {
-            throw new SupertextException($"The document has no {sourceCulture} version to translate from.");
+            throw new SupertextException("noSourceVersion", $"The document has no {sourceCulture} version to translate from.", [sourceCulture]);
         }
 
         var results = new List<CultureTranslationResult>();
@@ -72,7 +72,7 @@ public sealed class ContentTranslator(
             }
             catch (Exception e) when (e is SupertextException or JsonException or HttpRequestException)
             {
-                results.Add(new CultureTranslationResult(target, TranslationStatus.Failed, 0, e.Message));
+                results.Add(new CultureTranslationResult(target, TranslationStatus.Failed, 0, e.Message, e as SupertextException));
                 logger.LogError(e, "Supertext: translating document {Document} from {Source} to {Target} failed.", documentKey, sourceCulture, target);
             }
         }
@@ -82,7 +82,7 @@ public sealed class ContentTranslator(
             var saved = contentService.Save(content, userId);
             if (!saved.Success)
             {
-                throw new SupertextException("Umbraco could not save the translated document: " + saved.Result);
+                throw new SupertextException("saveFailed", "Umbraco could not save the translated document.", detail: $"{saved.Result}");
             }
         }
         return results;
@@ -319,7 +319,7 @@ public sealed class ContentTranslator(
     /// <summary>Languages a document can be translated into, for the dialog.</summary>
     public async Task<IReadOnlyList<(string IsoCode, string Name, bool IsDefault, bool Exists)>> GetLanguagesAsync(Guid documentKey)
     {
-        var content = contentService.GetById(documentKey) ?? throw new SupertextException("Document not found.");
+        var content = contentService.GetById(documentKey) ?? throw new SupertextException("documentNotFound", "Document not found.");
         var languages = await languageService.GetAllAsync();
         return languages
             .Where(l => !Options.Languages.TryGetValue(l.IsoCode, out var o) || o.Enabled)

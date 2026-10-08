@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added: French and Italian interface (and German where it was missing). The button, dialog, notifications and error messages follow the backoffice user's UI culture (English, German, French, Italian); server errors are sent with a code so the dialog can show them in the user's language. The "Authentication failed" message now also links to Supertext account signup and API key generation.
+
 ## 0.1.0 — 2026-10-07
 
 - First version for Umbraco 17/18: **Translate with Supertext** in the document workspace and actions menu, with a dialog to choose source and target languages.

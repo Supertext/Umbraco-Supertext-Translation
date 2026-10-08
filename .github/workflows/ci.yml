@@ -21,6 +21,8 @@ jobs:
       - name: Unit tests
         run: dotnet test tests/Supertext.Umbraco.Translation.Tests -c Release
       - name: Backoffice modules syntax
-        run: for f in src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/*.js; do node --check --input-type=module < "$f"; done
+        run: for f in src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/*.js src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/lang/*.js; do node --check --input-type=module < "$f"; done
+      - name: Backoffice localization (en, de, fr, it)
+        run: node Tests/Localization/check-keys.mjs
       - name: Demo entrypoint syntax
         run: sh -n demo/entrypoint.sh

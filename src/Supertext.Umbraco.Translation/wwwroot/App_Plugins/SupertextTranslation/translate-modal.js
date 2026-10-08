@@ -1,5 +1,5 @@
 // The "Translate with Supertext" dialog (sidebar modal).
-import { html, css, nothing } from '@umbraco-cms/backoffice/external/lit';
+import { html, css, nothing, unsafeHTML } from '@umbraco-cms/backoffice/external/lit';
 import { UmbModalBaseElement } from '@umbraco-cms/backoffice/modal';
 import { UMB_NOTIFICATION_CONTEXT } from '@umbraco-cms/backoffice/notification';
 import { umbHttpClient } from '@umbraco-cms/backoffice/http-client';
@@ -38,7 +38,7 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
     ]);
     this._status = status.data;
     if (languages.error || !Array.isArray(languages.data)) {
-      this._error = languages.error?.title ?? 'Could not load the languages of this document.';
+      this._error = this._errorText(languages.error, 'supertext_loadLanguagesFailed');
       return;
     }
     this._languages = languages.data;
@@ -79,7 +79,7 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
     });
     this._busy = false;
     if (error || !Array.isArray(data)) {
-      this._error = error?.title ?? 'The translation could not be started.';
+      this._error = this._errorText(error, 'supertext_startFailed');
       return;
     }
     this._results = data;
@@ -89,18 +89,42 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
     if (translated.length) {
       notifications.peek('positive', {
         data: {
-          headline: 'Translated with Supertext',
-          message: `${translated.map((r) => this._name(r.culture)).join(', ')} saved as draft. Review and publish when ready.`,
+          headline: this.localize.term('supertext_translatedHeadline'),
+          message: this.localize.term('supertext_translatedMessage', translated.map((r) => this._name(r.culture)).join(', ')),
         },
       });
     }
     if (failed.length) {
       notifications.peek('danger', {
-        data: { headline: 'Supertext translation failed', message: failed.map((r) => `${this._name(r.culture)}: ${r.error}`).join(' ') },
+        data: {
+          headline: this.localize.term('supertext_failedHeadline'),
+          message: failed.map((r) => `${this._name(r.culture)}: ${this._resultError(r)}`).join(' '),
+        },
       });
     }
     this.value = { translated: translated.length };
     if (!failed.length) this._submitModal();
+  }
+
+  /**
+   * Text for a server error in the editor's language: the server sends a code (key
+   * `supertext_error_<code>`), its arguments and the untranslated detail from Supertext,
+   * plus the English text as `title`, used when the code is unknown.
+   */
+  _localizeError(code, args, detail, english, fallbackKey) {
+    const text = code
+      ? this.localize.termOrDefault(`supertext_error_${code}`, null, ...(args ?? []))
+      : null;
+    if (text === null) return english || this.localize.term(fallbackKey);
+    return detail ? `${text} (${detail})` : text;
+  }
+
+  _errorText(error, fallbackKey) {
+    return this._localizeError(error?.supertextCode, error?.supertextArgs, error?.supertextDetail, error?.title, fallbackKey);
+  }
+
+  _resultError(r) {
+    return this._localizeError(r.errorCode, r.errorArgs, r.errorDetail, r.error, 'supertext_startFailed');
   }
 
   _name(isoCode) {
@@ -109,24 +133,20 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
 
   render() {
     return html`
-      <umb-body-layout headline="Translate with Supertext">
+      <umb-body-layout headline=${this.localize.term('supertext_translateWithSupertext')}>
         <div id="main">
           ${this._status && !this._status.hasApiKey
-            ? html`<div class="warning">
-                No Supertext API key is configured. Ask your administrator to set <code>SUPERTEXT_API_KEY</code>.
-                No Supertext account yet? <a href="https://www.supertext.com/person/en/account/signin" target="_blank" rel="noopener">Create one at supertext.com</a>.
-                Generate your API key at <a href="https://www.supertext.com/en/integrations/api" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (requires the Admin role).
-              </div>`
+            ? html`<div class="warning">${unsafeHTML(this.localize.term('supertext_noApiKeyHtml'))}</div>`
             : nothing}
           ${this._error ? html`<div class="warning">${this._error}</div>` : nothing}
           ${this._languages.length ? this._renderForm() : html`<uui-loader></uui-loader>`}
         </div>
         <div slot="actions">
-          <uui-button label="Cancel" @click=${this._rejectModal}></uui-button>
+          <uui-button label=${this.localize.term('general_cancel')} @click=${this._rejectModal}></uui-button>
           <uui-button
             look="primary"
             color=${this._confirmOverwrite ? 'danger' : 'positive'}
-            label=${this._confirmOverwrite ? 'Replace and translate' : 'Translate'}
+            label=${this.localize.term(this._confirmOverwrite ? 'supertext_replaceAndTranslate' : 'supertext_translate')}
             ?disabled=${!this._source || this._targets.size === 0 || this._busy || this._status?.hasApiKey === false}
             .state=${this._busy ? 'waiting' : undefined}
             @click=${this._translate}></uui-button>
@@ -138,10 +158,10 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
   _renderForm() {
     const sources = this._languages.filter((l) => l.exists);
     return html`
-      <uui-box headline="Translate from">
+      <uui-box headline=${this.localize.term('supertext_translateFrom')}>
         <select
           id="source"
-          aria-label="Source language"
+          aria-label=${this.localize.term('supertext_sourceLanguage')}
           .value=${this._source ?? ''}
           @change=${(e) => {
             this._source = e.target.value;
@@ -150,7 +170,7 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
           ${sources.map((l) => html`<option value=${l.isoCode} ?selected=${l.isoCode === this._source}>${l.name}</option>`)}
         </select>
       </uui-box>
-      <uui-box headline="Into">
+      <uui-box headline=${this.localize.term('supertext_into')}>
         ${this._languages
           .filter((l) => l.isoCode !== this._source)
           .map(
@@ -160,7 +180,7 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
                   label=${l.name}
                   ?checked=${this._targets.has(l.isoCode)}
                   @change=${(e) => this._toggle(l.isoCode, e.target.checked)}></uui-checkbox>
-                ${l.exists ? html`<uui-tag look="secondary">has content</uui-tag>` : nothing}
+                ${l.exists ? html`<uui-tag look="secondary">${this.localize.term('supertext_hasContent')}</uui-tag>` : nothing}
                 ${this._renderResult(l.isoCode)}
               </div>
             `,
@@ -168,22 +188,23 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
       </uui-box>
       ${this._confirmOverwrite
         ? html`<div class="warning" role="alert">
-            <strong>${this._existingTargets.map((l) => l.name).join(', ')} already
-            ${this._existingTargets.length === 1 ? 'has' : 'have'} content.</strong>
-            Translating replaces the current draft there with a new translation of the ${this._name(this._source)} version.
+            <strong>${this.localize.term(
+              'supertext_overwriteWarning',
+              this._existingTargets.map((l) => l.name).join(', '),
+              this._existingTargets.length,
+            )}</strong>
+            ${this.localize.term('supertext_overwriteExplanation', this._name(this._source))}
           </div>`
         : nothing}
-      <p class="hint">
-        The page is translated as saved: save your changes first. Translations are saved as drafts for you to review and publish.
-      </p>
+      <p class="hint">${this.localize.term('supertext_hint')}</p>
     `;
   }
 
   _renderResult(isoCode) {
     const r = this._results?.find((x) => x.culture === isoCode);
     if (!r) return nothing;
-    if (r.status === 'translated') return html`<uui-tag color="positive">translated</uui-tag>`;
-    if (r.status === 'failed') return html`<uui-tag color="danger" title=${r.error ?? ''}>failed</uui-tag>`;
+    if (r.status === 'translated') return html`<uui-tag color="positive">${this.localize.term('supertext_translated')}</uui-tag>`;
+    if (r.status === 'failed') return html`<uui-tag color="danger" title=${this._resultError(r)}>${this.localize.term('supertext_failed')}</uui-tag>`;
     return nothing;
   }
 

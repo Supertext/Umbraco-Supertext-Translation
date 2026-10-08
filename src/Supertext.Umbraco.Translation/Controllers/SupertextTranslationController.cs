@@ -32,7 +32,9 @@ public sealed class SupertextTranslationController(
 
     public sealed record TranslateRequest(Guid DocumentId, string SourceCulture, string[] TargetCultures, bool Overwrite);
 
-    public sealed record CultureResultModel(string Culture, string Status, int Fields, string? Error);
+    /// <param name="Error">English message</param>
+    /// <param name="ErrorCode">key suffix of <c>supertext_error_…</c> in the backoffice localization</param>
+    public sealed record CultureResultModel(string Culture, string Status, int Fields, string? Error, string? ErrorCode, string[]? ErrorArgs, string? ErrorDetail);
 
     [HttpGet("status")]
     [ProducesResponseType<StatusModel>(StatusCodes.Status200OK)]
@@ -49,7 +51,7 @@ public sealed class SupertextTranslationController(
         }
         catch (SupertextException e)
         {
-            return NotFound(new ProblemDetails { Title = e.Message });
+            return NotFound(ProblemFor(e));
         }
     }
 
@@ -59,7 +61,7 @@ public sealed class SupertextTranslationController(
     {
         if (request.TargetCultures is not { Length: > 0 } || string.IsNullOrWhiteSpace(request.SourceCulture))
         {
-            return BadRequest(new ProblemDetails { Title = "Choose a source language and at least one target language." });
+            return BadRequest(ProblemFor(new SupertextException("chooseLanguages", "Choose a source language and at least one target language.")));
         }
 
         // The editor needs update rights on the document in the target languages.
@@ -76,11 +78,23 @@ public sealed class SupertextTranslationController(
         try
         {
             var results = await translator.TranslateAsync(request.DocumentId, request.SourceCulture, request.TargetCultures, request.Overwrite, userId, ct);
-            return Ok(results.Select(r => new CultureResultModel(r.Culture, r.Status.ToString().ToLowerInvariant(), r.Fields, r.Error)));
+            return Ok(results.Select(r => new CultureResultModel(r.Culture, r.Status.ToString().ToLowerInvariant(), r.Fields, r.Error, r.Exception?.Code, r.Exception?.Args, r.Exception?.Detail)));
         }
         catch (SupertextException e)
         {
-            return BadRequest(new ProblemDetails { Title = e.Message });
+            return BadRequest(ProblemFor(e));
         }
     }
+
+    /// <summary>English title plus code, arguments and detail, so the backoffice can localize it.</summary>
+    private static ProblemDetails ProblemFor(SupertextException e) => new()
+    {
+        Title = e.Message,
+        Extensions =
+        {
+            ["supertextCode"] = e.Code,
+            ["supertextArgs"] = e.Args,
+            ["supertextDetail"] = e.Detail,
+        },
+    };
 }

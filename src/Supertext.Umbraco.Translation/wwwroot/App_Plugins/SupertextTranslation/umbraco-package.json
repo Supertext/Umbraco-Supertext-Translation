@@ -6,6 +6,42 @@
   "allowTelemetry": true,
   "extensions": [
     {
+      "type": "localization",
+      "alias": "Supertext.Localization.EN",
+      "name": "Supertext English UI localization",
+      "meta": {
+        "culture": "en"
+      },
+      "js": "/App_Plugins/SupertextTranslation/lang/en.js"
+    },
+    {
+      "type": "localization",
+      "alias": "Supertext.Localization.DE",
+      "name": "Supertext German UI localization",
+      "meta": {
+        "culture": "de"
+      },
+      "js": "/App_Plugins/SupertextTranslation/lang/de.js"
+    },
+    {
+      "type": "localization",
+      "alias": "Supertext.Localization.FR",
+      "name": "Supertext French UI localization",
+      "meta": {
+        "culture": "fr"
+      },
+      "js": "/App_Plugins/SupertextTranslation/lang/fr.js"
+    },
+    {
+      "type": "localization",
+      "alias": "Supertext.Localization.IT",
+      "name": "Supertext Italian UI localization",
+      "meta": {
+        "culture": "it"
+      },
+      "js": "/App_Plugins/SupertextTranslation/lang/it.js"
+    },
+    {
       "type": "workspaceAction",
       "kind": "default",
       "alias": "Supertext.WorkspaceAction.Translate",
@@ -13,7 +49,7 @@
       "api": "/App_Plugins/SupertextTranslation/workspace-action.js",
       "weight": 50,
       "meta": {
-        "label": "Translate with Supertext",
+        "label": "#supertext_translateWithSupertext",
         "look": "secondary"
       },
       "conditions": [
@@ -35,7 +71,7 @@
       "weight": 650,
       "meta": {
         "icon": "icon-globe",
-        "label": "Translate with Supertext"
+        "label": "#supertext_translateWithSupertext"
       }
     },
     {
