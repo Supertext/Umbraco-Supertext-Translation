@@ -114,11 +114,13 @@ public sealed class ContentTranslator(
         if (segments.Count > 0)
         {
             var language = Options.Languages.TryGetValue(target, out var l) ? l : null;
-            var code = string.IsNullOrWhiteSpace(language?.Code) ? target : language!.Code!;
+            var sourceLanguage = Options.Languages.TryGetValue(source, out var s) ? s : null;
+            var code = LanguageCodes.Target(target, language?.Code);
+            var sourceCode = LanguageCodes.Source(source, sourceLanguage?.Code);
             var politeness = language?.Politeness ?? "default";
             foreach (var (offset, chunk) in segments.Chunks(SupertextClient.MaxDocumentCharacters))
             {
-                var html = await client.TranslateDocumentAsync(HtmlDocument.Build(chunk), code, source, politeness, ct);
+                var html = await client.TranslateDocumentAsync(HtmlDocument.Build(chunk), code, sourceCode, politeness, ct);
                 foreach (var (id, text) in HtmlDocument.Parse(html, chunk))
                 {
                     segments.SetResult(offset + id, text);

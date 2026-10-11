@@ -68,7 +68,7 @@ public sealed class SupertextOptions
 
 public sealed class SupertextLanguageOptions
 {
-    /// <summary>Target language code sent to Supertext, e.g. "de-CH". Default: the culture itself.</summary>
+    /// <summary>Target language code sent to Supertext, e.g. "de-CH". Default: the culture, with a default region if it has none (de → de-DE). As source, its language without region is sent.</summary>
     public string? Code { get; set; }
 
     /// <summary>"more" (formal: Sie/vous/Lei), "less" (informal: du/tu) or "default".</summary>

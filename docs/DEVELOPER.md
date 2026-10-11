@@ -52,6 +52,16 @@ AI file translation API v1, shared with all Supertext plugins:
 
 Header `Authorization: Supertext-Auth-Key <key>`. HTTP 429 is retried up to 4 times (`Retry-After`, else 1/2/4/8 s with jitter). Target languages are translated one after the other to stay under the per-second limit.
 
+## Language codes
+
+Supertext wants the **source** as a bare language (`en`) and the **target** as a regional code (`de-DE`, `fr-CH`, `en-US`); a bare target such as `de` is rejected with `INVALID_LANGUAGE_PAIR`. `src/Supertext.Umbraco.Translation/Api/LanguageCodes.cs` (no CMS dependency, unit-tested in `LanguageCodesTests`) turns cultures into Supertext codes:
+
+- **Target** (`LanguageCodes.Target`): the `Supertext:Languages:<culture>:Code` override if set, else the culture. It is normalized (`de_ch`/`de-ch` → `de-CH`, `zh-hant` → `zh-Hant`, `es-419` stays); a code without region gets a default region: ar-SA, bg-BG, cs-CZ, da-DK, de-DE, el-GR, en-US, es-ES, et-EE, fi-FI, fr-FR, hr-HR, hu-HU, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, nb-NO, nl-NL, pl-PL, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN, zh-CN (the same table as the Shopify app). Unknown bare codes are sent unchanged, so Supertext's error names them.
+- **Source** (`LanguageCodes.Source`): the bare language of the source culture's override if set, else of the culture (`en-US` → `en`).
+- Translating within one language (`en-US` → `en-GB`) is allowed.
+
+The stand-in (`Tests/Docs/stand-in.mjs`) rejects targets without region like the live API.
+
 ## Local development
 
 .NET 10 SDK and Node 20+ (stand-in API, screenshots).

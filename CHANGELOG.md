@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: cultures without a region (e.g. `de`, `fr`) are now sent to Supertext as `de-DE`, `fr-FR` (Supertext rejects targets without region); `Languages.<culture>.Code` is normalized (`de_ch` → `de-CH`) and, for the source language, sent without region.
 - Added: French and Italian interface (and German where it was missing). The button, dialog, notifications and error messages follow the backoffice user's UI culture (English, German, French, Italian); server errors are sent with a code so the dialog can show them in the user's language. The "Authentication failed" message now also links to Supertext account signup and API key generation.
 
 ## 0.1.0 — 2026-10-07

@@ -68,7 +68,7 @@ The package uses Umbraco's own multilingual setup:
 
 Turning on *Vary by culture* for a document type that already has content moves the values of its own properties to the default language. **Properties that come from a composition keep their old shared values**, which then no longer show. Re-save those pages in the default language, or move the values with a small migration; the demo does this in `DemoSetupService.MoveSharedValuesToEnglish`.
 
-The package sends the Umbraco culture (ISO code) as the target language: `de-CH` stays `de-CH`. Per-language overrides are optional:
+The package sends the Umbraco culture (ISO code) as the target language: `de-CH` stays `de-CH`. Supertext needs a region for the target, so a culture without one gets a default region: `de` → `de-DE`, `fr` → `fr-FR`, `it` → `it-IT`, `en` → `en-US` (and so on for other languages). The source language is sent without region (`en-US` → `en`). Per-language overrides are optional (`Code` wins over the default; when that language is the source, its language without region is sent):
 
 ```json
 "Supertext": {
@@ -104,7 +104,7 @@ All under `Supertext` in appsettings.json (or environment variables like `Supert
 | `Endpoint` | `https://api.supertext.com/v1/` | API base URL; `SUPERTEXT_API_ENDPOINT` wins |
 | `PollIntervalSeconds` | `2` | Seconds between status checks |
 | `PollTimeoutSeconds` | `240` | Maximum seconds to wait for one language |
-| `Languages.<culture>.Code` | the culture | Target code sent to Supertext |
+| `Languages.<culture>.Code` | the culture (with a default region if it has none, e.g. `de` → `de-DE`) | Target code sent to Supertext, with region (e.g. `de-CH`) |
 | `Languages.<culture>.Politeness` | `default` | `more`, `less` or `default` |
 | `Languages.<culture>.Enabled` | `true` | `false` hides the language from the dialog |
 | `PlainTextEditors` | `Umbraco.TextBox`, `Umbraco.TextArea` | Property editors translated as plain text |
