@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Supertext.Sdk;
+using Segment = Supertext.Sdk.Segment;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
 using Umbraco.Cms.Core.Models;
@@ -18,7 +20,7 @@ public enum TranslationStatus
     Failed,
 }
 
-public sealed record CultureTranslationResult(string Culture, TranslationStatus Status, int Fields, string? Error, SupertextException? Exception = null);
+public sealed record CultureTranslationResult(string Culture, TranslationStatus Status, int Fields, string? Error, TranslationException? Exception = null);
 
 /// <summary>
 /// Translates a document from one culture into others: copies every culture-variant
@@ -31,7 +33,7 @@ public sealed class ContentTranslator(
     IContentService contentService,
     IContentTypeService contentTypeService,
     ILanguageService languageService,
-    SupertextClient client,
+    SupertextClientFactory clients,
     IOptionsMonitor<SupertextOptions> options,
     ILogger<ContentTranslator> logger)
 {
@@ -40,14 +42,14 @@ public sealed class ContentTranslator(
     public async Task<IReadOnlyList<CultureTranslationResult>> TranslateAsync(
         Guid documentKey, string sourceCulture, IReadOnlyCollection<string> targetCultures, bool overwrite, int userId, CancellationToken ct = default)
     {
-        var content = contentService.GetById(documentKey) ?? throw new SupertextException("documentNotFound", "Document not found.");
+        var content = contentService.GetById(documentKey) ?? throw new TranslationException("documentNotFound", "Document not found.");
         if (!content.ContentType.VariesByCulture())
         {
-            throw new SupertextException("invariantDocumentType", $"The document type \"{content.ContentType.Name}\" does not vary by culture, so it has no separate language versions to translate into.", [content.ContentType.Name ?? content.ContentType.Alias]);
+            throw new TranslationException("invariantDocumentType", $"The document type \"{content.ContentType.Name}\" does not vary by culture, so it has no separate language versions to translate into.", [content.ContentType.Name ?? content.ContentType.Alias]);
         }
         if (!content.IsCultureAvailable(sourceCulture))
         {
-            throw new SupertextException("noSourceVersion", $"The document has no {sourceCulture} version to translate from.", [sourceCulture]);
+            throw new TranslationException("noSourceVersion", $"The document has no {sourceCulture} version to translate from.", [sourceCulture]);
         }
 
         var results = new List<CultureTranslationResult>();
@@ -70,9 +72,10 @@ public sealed class ContentTranslator(
                 changed = true;
                 logger.LogInformation("Supertext: translated {Fields} field(s) of document {Document} from {Source} to {Target}.", fields, documentKey, sourceCulture, target);
             }
-            catch (Exception e) when (e is SupertextException or JsonException or HttpRequestException)
+            catch (Exception e) when (e is SupertextException or TranslationException or JsonException)
             {
-                results.Add(new CultureTranslationResult(target, TranslationStatus.Failed, 0, e.Message, e as SupertextException));
+                var error = e is SupertextException sdkError ? TranslationException.From(sdkError) : e as TranslationException;
+                results.Add(new CultureTranslationResult(target, TranslationStatus.Failed, 0, error?.Message ?? e.Message, error));
                 logger.LogError(e, "Supertext: translating document {Document} from {Source} to {Target} failed.", documentKey, sourceCulture, target);
             }
         }
@@ -82,7 +85,7 @@ public sealed class ContentTranslator(
             var saved = contentService.Save(content, userId);
             if (!saved.Success)
             {
-                throw new SupertextException("saveFailed", "Umbraco could not save the translated document.", detail: $"{saved.Result}");
+                throw new TranslationException("saveFailed", "Umbraco could not save the translated document.", detail: $"{saved.Result}");
             }
         }
         return results;
@@ -115,16 +118,19 @@ public sealed class ContentTranslator(
         {
             var language = Options.Languages.TryGetValue(target, out var l) ? l : null;
             var sourceLanguage = Options.Languages.TryGetValue(source, out var s) ? s : null;
-            var code = LanguageCodes.Target(target, language?.Code);
-            var sourceCode = LanguageCodes.Source(source, sourceLanguage?.Code);
-            var politeness = language?.Politeness ?? "default";
-            foreach (var (offset, chunk) in segments.Chunks(SupertextClient.MaxDocumentCharacters))
+            var code = LanguageCodes.Target(string.IsNullOrWhiteSpace(language?.Code) ? target : language.Code);
+            var sourceCode = LanguageCodes.Source(string.IsNullOrWhiteSpace(sourceLanguage?.Code) ? source : sourceLanguage.Code);
+            var politeness = (language?.Politeness ?? "").Trim().ToLowerInvariant() switch
             {
-                var html = await client.TranslateDocumentAsync(HtmlDocument.Build(chunk), code, sourceCode, politeness, ct);
-                foreach (var (id, text) in HtmlDocument.Parse(html, chunk))
-                {
-                    segments.SetResult(offset + id, text);
-                }
+                "more" => Politeness.More,
+                "less" => Politeness.Less,
+                _ => Politeness.Default,
+            };
+            // One document per language; the SDK splits only above ~900k characters.
+            var translated = await clients.Create().TranslateTextsAsync(segments.Keyed(), code, sourceCode, politeness, cancellationToken: ct);
+            foreach (var (key, text) in translated)
+            {
+                segments.SetResult(int.Parse(key, System.Globalization.CultureInfo.InvariantCulture), text);
             }
         }
 
@@ -321,7 +327,7 @@ public sealed class ContentTranslator(
     /// <summary>Languages a document can be translated into, for the dialog.</summary>
     public async Task<IReadOnlyList<(string IsoCode, string Name, bool IsDefault, bool Exists)>> GetLanguagesAsync(Guid documentKey)
     {
-        var content = contentService.GetById(documentKey) ?? throw new SupertextException("documentNotFound", "Document not found.");
+        var content = contentService.GetById(documentKey) ?? throw new TranslationException("documentNotFound", "Document not found.");
         var languages = await languageService.GetAllAsync();
         return languages
             .Where(l => !Options.Languages.TryGetValue(l.IsoCode, out var o) || o.Enabled)
@@ -331,7 +337,7 @@ public sealed class ContentTranslator(
 
     private sealed class SegmentList
     {
-        private readonly List<HtmlDocument.Segment> _segments = [];
+        private readonly List<Segment> _segments = [];
         private readonly Dictionary<int, string> _results = [];
 
         public int Count => _segments.Count;
@@ -340,7 +346,7 @@ public sealed class ContentTranslator(
 
         public int Add(string text, bool isHtml)
         {
-            _segments.Add(new HtmlDocument.Segment(text, isHtml));
+            _segments.Add(new Segment(text, isHtml));
             return _segments.Count - 1;
         }
 
@@ -354,29 +360,8 @@ public sealed class ContentTranslator(
 
         public string? Result(int index) => _results.TryGetValue(index, out var t) ? t : null;
 
-        /// <summary>Documents below Supertext's size limit: (first index, segments).</summary>
-        public IEnumerable<(int Offset, List<HtmlDocument.Segment> Segments)> Chunks(int maxCharacters)
-        {
-            var start = 0;
-            var size = 0;
-            var current = new List<HtmlDocument.Segment>();
-            for (var i = 0; i < _segments.Count; i++)
-            {
-                var length = _segments[i].Text.Length + 40;
-                if (current.Count > 0 && size + length > maxCharacters)
-                {
-                    yield return (start, current);
-                    start = i;
-                    size = 0;
-                    current = [];
-                }
-                current.Add(_segments[i]);
-                size += length;
-            }
-            if (current.Count > 0)
-            {
-                yield return (start, current);
-            }
-        }
+        /// <summary>The segments keyed by their index, for <see cref="SupertextClient.TranslateTextsAsync"/>.</summary>
+        public IEnumerable<KeyValuePair<string, Segment>> Keyed() =>
+            _segments.Select((segment, i) => KeyValuePair.Create(i.ToString(System.Globalization.CultureInfo.InvariantCulture), segment));
     }
 }

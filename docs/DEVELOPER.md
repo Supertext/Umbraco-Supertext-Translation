@@ -10,7 +10,7 @@ Backoffice: "Translate with Supertext" (workspace action + entity action)
                                   ── GET  …/supertext/languages?documentId=
                                   ── POST …/supertext/translate {documentId, sourceCulture, targetCultures[], overwrite}
 Server: SupertextTranslationController (Management API, SectionAccessContent + Update permission per culture)
-   └─ ContentTranslator ── per target culture: collect segments → one HTML document → SupertextClient
+   └─ ContentTranslator ── per target culture: collect segments → Supertext SDK TranslateTextsAsync (one HTML document)
                         └─ SetCultureName / SetValue(culture) → IContentService.Save (draft)
 ```
 
@@ -19,10 +19,11 @@ Server: SupertextTranslationController (Management API, SectionAccessContent + U
 | `wwwroot/App_Plugins/SupertextTranslation/` | Backoffice extension, plain ES modules (no build step): `umbraco-package.json` (workspace action on `Umb.Workspace.Document`, entity action for `document`, sidebar modal), `workspace-action.js`, `entity-action.js`, `open-dialog.js` (modal token), `translate-modal.js` (Lit element on `UmbModalBaseElement`, calls the API with `umbHttpClient` and bearer security). |
 | `wwwroot/App_Plugins/SupertextTranslation/lang/` | UI strings: `en.js`, `de.js`, `fr.js`, `it.js`, registered as `localization` extensions in `umbraco-package.json`. See *UI strings* below. |
 | `Controllers/SupertextTranslationController` | `ManagementApiControllerBase`, `[VersionedApiBackOfficeRoute("supertext")]`. Checks `ContentPermissionResource.WithKeys(ActionUpdate.ActionLetter, document, targetCultures)`. |
-| `Services/ContentTranslator` | Copies every culture-variant property from the source culture to each target; registers translatable text as segments with "rebuild" closures; translates one document per target language (chunked above `MaxDocumentCharacters`); writes values and the culture name; saves once. Existing target languages are skipped unless `overwrite` (the dialog asks). |
-| `Api/SupertextClient`, `Api/HtmlDocument` | HTTP protocol (429 retries, prefix-tolerant key) and segment packing, as in the PHP plugins; HTML parsing with HtmlAgilityPack (already an Umbraco dependency). |
+| `Services/ContentTranslator` | Copies every culture-variant property from the source culture to each target; registers translatable text as segments with "rebuild" closures; translates them per target language with the SDK's `TranslateTextsAsync` (one document; the SDK splits only above ~900k characters); writes values and the culture name; saves once. Existing target languages are skipped unless `overwrite` (the dialog asks). |
+| `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Sdk.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext". |
+| `Api/TranslationException` | Errors for the backoffice: `Code` is the suffix of `supertext_error_…` in `lang/*.js`. `From()` maps the SDK's error codes (`SupertextErrorCodes`) to these codes. |
 | `Configuration/SupertextOptions` | `Supertext` section; `SUPERTEXT_API_KEY` / `SUPERTEXT_API_ENDPOINT` win. |
-| `Composing/SupertextComposer` | Options, typed `HttpClient`, scoped translator. |
+| `Composing/SupertextComposer` | Options, named `HttpClient`, client factory, scoped translator. |
 
 **Value formats** the translator understands:
 
@@ -31,15 +32,28 @@ Server: SupertextTranslationController (Management API, SectionAccessContent + U
 - Block list / grid / single block: `{"contentData": [{"contentTypeKey", "values": [{"alias", "value", "editorAlias", "culture"}]}], "settingsData": […], …}`. `editorAlias` is usually `null`, so the element type (looked up by `contentTypeKey`) decides each value's editor. Only `contentData` is translated. Values may arrive **encoded twice** (a JSON string whose content is JSON); `Unwrap` decodes one level and re-encodes the result the same way.
 - In `CollectBlockNode`, keep the `(object?)` casts on the switch arms: `JsonNode` has an implicit conversion from `string`, so without them the switch is typed `JsonNode` and strings silently become JSON values again (block text was skipped because of this).
 
-**Multipart:** .NET writes part names unquoted (`name=target_lang`). `SubmitAsync` sets `Content-Disposition` explicitly with quoted names, like browsers do, because stricter parsers reject the unquoted form.
-
 ### UI strings
 
 All text the backoffice shows comes from the localization files in `wwwroot/App_Plugins/SupertextTranslation/lang/` (Umbraco's backoffice localization: one `localization` extension per culture in `umbraco-package.json`, `meta.culture` `en`/`de`/`fr`/`it`; Umbraco matches the user's UI culture by language, so `de-CH` gets `de`, and falls back to `en`).
 
 - Keys live in the `supertext` section: `this.localize.term('supertext_translate')` in the modal, `#supertext_translateWithSupertext` for manifest labels. Texts with arguments are functions (`overwriteWarning: (languages, count) => …`). `noApiKeyHtml` is rendered with `unsafeHTML` (our own text, with the two links).
-- Server errors: `SupertextException` carries an error `Code`, `Args` and the untranslated `Detail` from Supertext besides the English `Message` (logs and API clients). The controller returns them as `supertextCode`/`supertextArgs`/`supertextDetail` in the problem details (and `errorCode`/`errorArgs`/`errorDetail` per language in the translate result); the modal shows `supertext_error_<code>` and falls back to the English text for unknown codes.
+- Server errors: `TranslationException` (own errors, and the SDK's `SupertextException` mapped by `TranslationException.From`) carries an error `Code`, `Args` and the untranslated `Detail` from Supertext besides the English `Message` (logs and API clients). The controller returns them as `supertextCode`/`supertextArgs`/`supertextDetail` in the problem details (and `errorCode`/`errorArgs`/`errorDetail` per language in the translate result); the modal shows `supertext_error_<code>` and falls back to the English text for unknown codes.
 - **New or changed strings need all four languages** in the same commit: formal address (Sie, vous, Lei), Umbraco's own terms in each language (its backoffice language files: *Entwurf*, *brouillon*, *bozza*, *Dokumenttyp*, …), "Supertext", placeholders and URLs untranslated; French uses a non-breaking space (`\u00a0`) before `?`, `!`, `:` and `;`. `node Tests/Localization/check-keys.mjs` (also in CI) fails when a language misses a key, a function takes a different number of arguments, the code uses an undefined key or a server error code has no text.
+
+## Supertext SDK
+
+The package talks to Supertext through the official **Supertext SDK for .NET** ([`Supertext.Sdk`](https://github.com/Supertext/Supertext-API-SDK-and-Guide/tree/main/sdk/dotnet), MIT, no dependencies). The SDK implements the protocol below, the HTML packing (one `data-st-id` element per field), the language code rules, the 429 retries and stable error codes; it is tested against the shared test vectors of all Supertext SDKs. The package only collects values, maps languages and writes the results back.
+
+`Supertext.Sdk` is not on nuget.org yet. Until it is, `nuget/` holds a package built from the SDK repository, versioned `0.1.0-preview.<sdk commit>`, and `nuget.config` adds that folder as a source for `Supertext.Sdk` only. To take a newer SDK:
+
+```bash
+git -C ../Supertext-API-SDK-and-Guide pull
+dotnet pack ../Supertext-API-SDK-and-Guide/sdk/dotnet/src/Supertext.Sdk -c Release -o nuget \
+  -p:Version=0.1.0-preview.$(git -C ../Supertext-API-SDK-and-Guide rev-parse --short HEAD) -p:ContinuousIntegrationBuild=true
+# remove the old .nupkg from nuget/, update the version in Supertext.Umbraco.Translation.csproj
+```
+
+Once the SDK is on nuget.org, reference the released version, delete `nuget/` and the local source in `nuget.config`.
 
 ## Supertext API protocol
 
@@ -50,7 +64,7 @@ AI file translation API v1, shared with all Supertext plugins:
 3. `GET translate/ai/file/{id}/translation` → translated HTML
 4. `DELETE translate/ai/file/{id}` (files also expire after 24 h)
 
-Header `Authorization: Supertext-Auth-Key <key>`. HTTP 429 is retried up to 4 times (`Retry-After`, else 1/2/4/8 s with jitter). Target languages are translated one after the other to stay under the per-second limit.
+Header `Authorization: Supertext-Auth-Key <key>` (the SDK strips a pasted prefix). HTTP 429 is retried up to 4 times (`Retry-After`, else 1/2/4/8 s with jitter). Target languages are translated one after the other to stay under the per-second limit.
 
 ## Language codes
 
@@ -89,7 +103,7 @@ Two Umbraco 17 settings matter for local HTTP:
 ## Tests
 
 ```bash
-dotnet test tests/Supertext.Umbraco.Translation.Tests    # HTML packing round trip
+dotnet test tests/Supertext.Umbraco.Translation.Tests    # SDK glue: error code mapping, client factory round trip (fake HTTP)
 node Tests/Localization/check-keys.mjs                   # UI strings complete in en, de, fr, it
 ```
 
@@ -166,7 +180,8 @@ Releases are published by `.github/workflows/release.yml` when the version is of
    - `src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/umbraco-package.json`: `version`, shown under Settings → Packages
 3. Push to `main`. The workflow checks that the version files match `CHANGELOG.md`, then tags `vX.Y.Z` and creates the GitHub release with the CHANGELOG section as notes (0.x versions as pre-releases). A push that adds no new version does nothing, and a version that is already released is skipped. After fixing a failed run, start it again with *Run workflow* on the *Release* workflow.
 
-Publishing to NuGet stays manual: `dotnet pack src/Supertext.Umbraco.Translation -c Release`, then push the package (the `umbraco-marketplace` tag lists it on the Umbraco Marketplace).
+Publishing to NuGet stays manual: `dotnet pack src/Supertext.Umbraco.Translation -c Release`, then push the package (the `umbraco-marketplace` tag lists it on the Umbraco Marketplace). The package depends on `Supertext.Sdk`, so the SDK must be on nuget.org first (see *Supertext SDK*).
+
 ## Known limitations / roadmap
 
 - Translation runs inside the request (up to `PollTimeoutSeconds` per language). Planned: a background job with progress for very large pages and many languages.

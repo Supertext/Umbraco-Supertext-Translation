@@ -41,6 +41,7 @@ export default {
       `Noch kein Supertext-Konto? Erstellen Sie eines auf ${SIGNUP}. ` +
       `Generieren Sie Ihren API-Schlüssel auf ${API_KEY} (supertext.com → Integrations → API, erfordert die Admin-Rolle).`,
     error_unreachable: 'Supertext ist nicht erreichbar.',
+    error_languagePair: 'Supertext unterstützt dieses Sprachpaar nicht. Prüfen Sie die Sprachcodes in den Supertext-Einstellungen.',
     error_notFound: 'Die angeforderte Supertext-Ressource wurde nicht gefunden.',
     error_tooLarge: 'Der Inhalt ist zu groß, um von Supertext in einem Durchgang übersetzt zu werden.',
     error_rateLimited: 'Zu viele Anfragen an Supertext. Bitte versuchen Sie es gleich noch einmal.',
@@ -51,6 +52,6 @@ export default {
     error_limitExceeded: 'Ihr Supertext-Übersetzungslimit ist überschritten.',
     error_fileDeleted: 'Die Supertext-Datei wurde gelöscht, bevor sie heruntergeladen werden konnte.',
     error_timeout: 'Zeitüberschreitung beim Warten auf die Supertext-Übersetzung.',
-    error_emptyTranslation: 'Das übersetzte Dokument war leer.',
+    error_emptyTranslation: 'Die Übersetzung von Supertext war leer oder unvollständig.',
   },
 };

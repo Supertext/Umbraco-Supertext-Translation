@@ -70,5 +70,6 @@ Your administrator decides per language whether Supertext writes formally (*Sie*
 | --- | --- |
 | *No Supertext API key is configured* | The package isn't set up yet. Ask your administrator; the message links to the Supertext signup and API key pages they need. |
 | *Supertext translation failed — German (Switzerland): …* | That language couldn't be translated (network, quota, Supertext unavailable). Nothing was changed for it; the other languages are still saved. Try again later. |
+| *Supertext does not support this language pair* | The language isn't set up correctly for Supertext. Ask your administrator. |
 | *The document type … does not vary by culture* | This kind of page has only one version for all languages. Your administrator can enable *Vary by culture* for it. |
 | You don't see the button | You need permission to update the page. Ask your administrator. |

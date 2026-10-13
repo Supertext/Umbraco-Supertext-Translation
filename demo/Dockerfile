@@ -5,6 +5,8 @@
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
+COPY nuget.config ./
+COPY nuget/ nuget/
 COPY src/ src/
 COPY demo/SupertextDemo/ demo/SupertextDemo/
 RUN dotnet publish demo/SupertextDemo/SupertextDemo.csproj -c Release -o /app -p:UseAppHost=false

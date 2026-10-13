@@ -22,7 +22,7 @@ namespace Supertext.Umbraco.Translation.Controllers;
 [Authorize(Policy = AuthorizationPolicies.SectionAccessContent)]
 public sealed class SupertextTranslationController(
     ContentTranslator translator,
-    SupertextClient client,
+    SupertextClientFactory clients,
     IAuthorizationService authorizationService,
     IBackOfficeSecurityAccessor backOfficeSecurityAccessor) : ManagementApiControllerBase
 {
@@ -38,7 +38,7 @@ public sealed class SupertextTranslationController(
 
     [HttpGet("status")]
     [ProducesResponseType<StatusModel>(StatusCodes.Status200OK)]
-    public IActionResult Status() => Ok(new StatusModel(client.HasApiKey, client.Endpoint));
+    public IActionResult Status() => Ok(new StatusModel(clients.HasApiKey, clients.Endpoint));
 
     [HttpGet("languages")]
     [ProducesResponseType<IEnumerable<LanguageModel>>(StatusCodes.Status200OK)]
@@ -49,7 +49,7 @@ public sealed class SupertextTranslationController(
             var languages = await translator.GetLanguagesAsync(documentId);
             return Ok(languages.Select(l => new LanguageModel(l.IsoCode, l.Name, l.IsDefault, l.Exists)));
         }
-        catch (SupertextException e)
+        catch (TranslationException e)
         {
             return NotFound(ProblemFor(e));
         }
@@ -61,7 +61,7 @@ public sealed class SupertextTranslationController(
     {
         if (request.TargetCultures is not { Length: > 0 } || string.IsNullOrWhiteSpace(request.SourceCulture))
         {
-            return BadRequest(ProblemFor(new SupertextException("chooseLanguages", "Choose a source language and at least one target language.")));
+            return BadRequest(ProblemFor(new TranslationException("chooseLanguages", "Choose a source language and at least one target language.")));
         }
 
         // The editor needs update rights on the document in the target languages.
@@ -80,14 +80,14 @@ public sealed class SupertextTranslationController(
             var results = await translator.TranslateAsync(request.DocumentId, request.SourceCulture, request.TargetCultures, request.Overwrite, userId, ct);
             return Ok(results.Select(r => new CultureResultModel(r.Culture, r.Status.ToString().ToLowerInvariant(), r.Fields, r.Error, r.Exception?.Code, r.Exception?.Args, r.Exception?.Detail)));
         }
-        catch (SupertextException e)
+        catch (TranslationException e)
         {
             return BadRequest(ProblemFor(e));
         }
     }
 
     /// <summary>English title plus code, arguments and detail, so the backoffice can localize it.</summary>
-    private static ProblemDetails ProblemFor(SupertextException e) => new()
+    private static ProblemDetails ProblemFor(TranslationException e) => new()
     {
         Title = e.Message,
         Extensions =

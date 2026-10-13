@@ -32,12 +32,16 @@ for (const file of sources) {
   }
 }
 
-// Error codes the server sends (SupertextException codes) need a supertext_error_<code> text.
+// Error codes the server sends (TranslationException codes, including those mapped from the
+// Supertext SDK's error codes) need a supertext_error_<code> text.
 const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
   d.isDirectory() ? (['bin', 'obj', 'wwwroot'].includes(d.name) ? [] : walk(join(dir, d.name))) : [join(dir, d.name)]);
 for (const file of walk(join(root, 'src/Supertext.Umbraco.Translation')).filter((f) => f.endsWith('.cs'))) {
   const text = readFileSync(file, 'utf8');
-  const codes = [...text.matchAll(/new SupertextException\("(\w+)"/g), ...text.matchAll(/=> \("(\w+)", "/g)].map((m) => m[1]);
+  const codes = [
+    ...text.matchAll(/new TranslationException\("(\w+)"/g),
+    ...text.matchAll(/\[SupertextErrorCodes\.\w+\] = "(\w+)"/g),
+  ].map((m) => m[1]);
   for (const code of codes) {
     if (!(`error_${code}` in en)) errors.push(`${file.slice(root.length + 1)}: error code ${code} has no supertext_error_${code} in en.js`);
   }

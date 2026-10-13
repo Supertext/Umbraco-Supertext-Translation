@@ -16,17 +16,18 @@ For administrators setting up the package on an Umbraco site.
 
 ## 1. Add the package
 
-The package is not on NuGet yet. Build it from the repository and add it from a local folder:
+The package is not on NuGet yet, and neither is the [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) (`Supertext.Sdk`) it uses to talk to Supertext. Build the package from the repository and add it from a local folder; the repository's `nuget/` folder holds the matching SDK package:
 
 ```bash
 git clone https://github.com/Supertext/Umbraco-Supertext-Translation
 dotnet pack Umbraco-Supertext-Translation/src/Supertext.Umbraco.Translation -c Release -o ./packages
+cp Umbraco-Supertext-Translation/nuget/*.nupkg ./packages/
 # in your Umbraco project:
 dotnet nuget add source /path/to/packages --name supertext-local
 dotnet add package Supertext.Umbraco.Translation --version 0.1.0
 ```
 
-(Or reference `src/Supertext.Umbraco.Translation/Supertext.Umbraco.Translation.csproj` from your solution.)
+(Or reference `src/Supertext.Umbraco.Translation/Supertext.Umbraco.Translation.csproj` from your solution and add the repository's `nuget/` folder as a package source.)
 
 Restart the site. The package registers itself; there is nothing to enable in the backoffice.
 
@@ -133,6 +134,8 @@ Translations already made stay in place; they are ordinary Umbraco content.
 | The button doesn't appear | Hard-refresh the backoffice after installing. Check the user's Update permission on the page. |
 | *No Supertext API key is configured* | [Generate a key](https://www.supertext.com/en/integrations/api) (Admin role required), set `SUPERTEXT_API_KEY` (or `Supertext:ApiKey`) and restart. |
 | *Authentication failed* | Wrong or revoked key; paste it again (the prefix is optional) or [generate a new one](https://www.supertext.com/en/integrations/api). |
+| *Supertext does not support this language pair* | Check `Languages.<culture>.Code`: the target needs a region Supertext supports (e.g. `de-CH`). |
+| *The translation from Supertext was empty or incomplete* | Supertext answered without some texts. Translate again; if it persists, send the log entry to Supertext support. |
 | *Too many requests* | Supertext's per-second limit; the package retries automatically (up to 4 times). |
 | *Timed out waiting for the Supertext translation* | Very long pages; raise `PollTimeoutSeconds` (and proxy timeouts). |
 | *does not vary by culture* | Enable *Allow vary by culture* on the document type (see *Languages*). |
