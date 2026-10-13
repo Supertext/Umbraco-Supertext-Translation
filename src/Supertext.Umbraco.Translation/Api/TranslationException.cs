@@ -1,4 +1,4 @@
-using Supertext.Sdk;
+using Supertext.Umbraco.Translation.Sdk;
 
 namespace Supertext.Umbraco.Translation.Api;
 

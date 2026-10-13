@@ -10,7 +10,7 @@ Backoffice: "Translate with Supertext" (workspace action + entity action)
                                   ── GET  …/supertext/languages?documentId=
                                   ── POST …/supertext/translate {documentId, sourceCulture, targetCultures[], overwrite}
 Server: SupertextTranslationController (Management API, SectionAccessContent + Update permission per culture)
-   └─ ContentTranslator ── per target culture: collect segments → Supertext SDK TranslateTextsAsync (one HTML document)
+   └─ ContentTranslator ── per target culture: collect segments → bundled Supertext SDK TranslateTextsAsync (one HTML document)
                         └─ SetCultureName / SetValue(culture) → IContentService.Save (draft)
 ```
 
@@ -20,7 +20,7 @@ Server: SupertextTranslationController (Management API, SectionAccessContent + U
 | `wwwroot/App_Plugins/SupertextTranslation/lang/` | UI strings: `en.js`, `de.js`, `fr.js`, `it.js`, registered as `localization` extensions in `umbraco-package.json`. See *UI strings* below. |
 | `Controllers/SupertextTranslationController` | `ManagementApiControllerBase`, `[VersionedApiBackOfficeRoute("supertext")]`. Checks `ContentPermissionResource.WithKeys(ActionUpdate.ActionLetter, document, targetCultures)`. |
 | `Services/ContentTranslator` | Copies every culture-variant property from the source culture to each target; registers translatable text as segments with "rebuild" closures; translates them per target language with the SDK's `TranslateTextsAsync` (one document; the SDK splits only above ~900k characters); writes values and the culture name; saves once. Existing target languages are skipped unless `overwrite` (the dialog asks). |
-| `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Sdk.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext". |
+| `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Umbraco.Translation.Sdk.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext". |
 | `Api/TranslationException` | Errors for the backoffice: `Code` is the suffix of `supertext_error_…` in `lang/*.js`. `From()` maps the SDK's error codes (`SupertextErrorCodes`) to these codes. |
 | `Configuration/SupertextOptions` | `Supertext` section; `SUPERTEXT_API_KEY` / `SUPERTEXT_API_ENDPOINT` win. |
 | `Composing/SupertextComposer` | Options, named `HttpClient`, client factory, scoped translator. |
@@ -42,18 +42,12 @@ All text the backoffice shows comes from the localization files in `wwwroot/App_
 
 ## Supertext SDK
 
-The package talks to Supertext through the official **Supertext SDK for .NET** ([`Supertext.Sdk`](https://github.com/Supertext/Supertext-API-SDK-and-Guide/tree/main/sdk/dotnet), MIT, no dependencies). The SDK implements the protocol below, the HTML packing (one `data-st-id` element per field), the language code rules, the 429 retries and stable error codes; it is tested against the shared test vectors of all Supertext SDKs. The package only collects values, maps languages and writes the results back.
+The package talks to Supertext through the official **Supertext SDK for .NET** ([Supertext-API-SDK-and-Guide](https://github.com/Supertext/Supertext-API-SDK-and-Guide/tree/main/sdk/dotnet), MIT). The SDK implements the protocol below, the HTML packing (one `data-st-id` element per field), the language code rules, the 429 retries and stable error codes; it is tested against the shared test vectors of all Supertext SDKs. The package only collects values, maps languages and writes the results back.
 
-`Supertext.Sdk` is not on nuget.org yet. Until it is, `nuget/` holds a package built from the SDK repository, versioned `0.1.0-preview.<sdk commit>`, and `nuget.config` adds that folder as a source for `Supertext.Sdk` only. To take a newer SDK:
+**Bundled copy:** the SDK's sources live in `lib/supertext-sdk/` (`src/*.cs`, `LICENSE`, `COMMIT` with the SDK commit, a short README), with the namespace changed from `Supertext.Sdk` to `Supertext.Umbraco.Translation.Sdk`, and are compiled into `Supertext.Umbraco.Translation.dll` (`<Compile Include>` in the `.csproj`). Sites install only this package; a site that also references the `Supertext.Sdk` NuGet package can't get a clash or version conflict. This stays so after the SDK is on nuget.org.
 
-```bash
-git -C ../Supertext-API-SDK-and-Guide pull
-dotnet pack ../Supertext-API-SDK-and-Guide/sdk/dotnet/src/Supertext.Sdk -c Release -o nuget \
-  -p:Version=0.1.0-preview.$(git -C ../Supertext-API-SDK-and-Guide rev-parse --short HEAD) -p:ContinuousIntegrationBuild=true
-# remove the old .nupkg from nuget/, update the version in Supertext.Umbraco.Translation.csproj
-```
-
-Once the SDK is on nuget.org, reference the released version, delete `nuget/` and the local source in `nuget.config`.
+- Update it with `scripts/vendor-sdk.sh [commit-or-branch]` (default `main`; `SDK_DIR=<clone>` uses a local clone), run the tests, and commit with a CHANGELOG entry.
+- Never edit the copy: fix the SDK in its own repository, then re-run the script.
 
 ## Supertext API protocol
 
@@ -180,7 +174,7 @@ Releases are published by `.github/workflows/release.yml` when the version is of
    - `src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/umbraco-package.json`: `version`, shown under Settings → Packages
 3. Push to `main`. The workflow checks that the version files match `CHANGELOG.md`, then tags `vX.Y.Z` and creates the GitHub release with the CHANGELOG section as notes (0.x versions as pre-releases). A push that adds no new version does nothing, and a version that is already released is skipped. After fixing a failed run, start it again with *Run workflow* on the *Release* workflow.
 
-Publishing to NuGet stays manual: `dotnet pack src/Supertext.Umbraco.Translation -c Release`, then push the package (the `umbraco-marketplace` tag lists it on the Umbraco Marketplace). The package depends on `Supertext.Sdk`, so the SDK must be on nuget.org first (see *Supertext SDK*).
+Publishing to NuGet stays manual: `dotnet pack src/Supertext.Umbraco.Translation -c Release`, then push the package (the `umbraco-marketplace` tag lists it on the Umbraco Marketplace).
 
 ## Known limitations / roadmap
 

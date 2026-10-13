@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Options;
-using Supertext.Sdk;
+using Supertext.Umbraco.Translation.Sdk;
 using Supertext.Umbraco.Translation.Configuration;
 
 namespace Supertext.Umbraco.Translation.Api;
 
 /// <summary>
-/// Creates the official Supertext SDK client (<see cref="SupertextClient"/>, NuGet <c>Supertext.Sdk</c>)
+/// Creates the official Supertext SDK client (<see cref="SupertextClient"/>, NuGet <c>Supertext.Umbraco.Translation.Sdk</c>)
 /// from the current options. The SDK handles the protocol: authentication header, multipart upload,
 /// 429 retries, polling, download, delete, HTML packing and language codes.
 /// </summary>

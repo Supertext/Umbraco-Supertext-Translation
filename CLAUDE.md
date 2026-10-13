@@ -86,6 +86,7 @@ Lessons from testing against the live API (October 2026), to apply in every plug
 
 ## Umbraco specifics
 
+- Supertext API calls go through the bundled SDK in `lib/supertext-sdk/` (namespace `Supertext.Umbraco.Translation.Sdk`, compiled into the package). Never edit it: fix the SDK in Supertext-API-SDK-and-Guide, then `scripts/vendor-sdk.sh`.
 - Explicit action, not a hook: Umbraco has no "create language version" step, so editors use **Translate with Supertext** (workspace button and document actions menu). The backoffice extension is plain ES modules in `src/Supertext.Umbraco.Translation/wwwroot/App_Plugins/SupertextTranslation/` (no build step); the server side is `ContentTranslator` behind `SupertextTranslationController` (Management API, `/umbraco/management/api/v1/supertext/...`).
 - Block values: rich text inside blocks arrives double-encoded (a JSON string containing JSON) and `editorAlias` is usually null, so the element type decides the editor. Keep the `(object?)` casts in `CollectBlockNode`: `JsonNode` converts implicitly from string.
 - The demo's Clean starter kit is single-language; `DemoSetupService` makes it multilingual on every start. Clean writes its views only during its first-boot migration, so `demo/SupertextDemo/Views/` is committed.

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Options;
-using Supertext.Sdk;
+using Supertext.Umbraco.Translation.Sdk;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
 using Xunit;

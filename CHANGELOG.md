@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Changed: the package now talks to Supertext through the official [Supertext SDK for .NET](https://github.com/Supertext/Supertext-API-SDK-and-Guide) (`Supertext.Sdk`) instead of its own API client, HTML packer and language code rules; HtmlAgilityPack is no longer referenced. Same behaviour. Until the SDK is on NuGet, its package ships in the repository's `nuget/` folder (see the installation guide).
+- Changed: the package now talks to Supertext through the official [Supertext SDK for .NET](https://github.com/Supertext/Supertext-API-SDK-and-Guide) instead of its own API client, HTML packer and language code rules. The SDK is compiled into the package, so there is nothing extra to install; HtmlAgilityPack is no longer referenced. Same behaviour.
 - Added: clear messages when Supertext rejects a language pair or returns an incomplete translation (English, German, French, Italian).
 - Fixed: cultures without a region (e.g. `de`, `fr`) are now sent to Supertext as `de-DE`, `fr-FR` (Supertext rejects targets without region); `Languages.<culture>.Code` is normalized (`de_ch` → `de-CH`) and, for the source language, sent without region.
 - Added: French and Italian interface (and German where it was missing). The button, dialog, notifications and error messages follow the backoffice user's UI culture (English, German, French, Italian); server errors are sent with a code so the dialog can show them in the user's language. The "Authentication failed" message now also links to Supertext account signup and API key generation.

@@ -18,8 +18,10 @@
   <ItemGroup>
     <PackageReference Include="Umbraco.Cms.Web.Common" Version="[17.7.1, 19.0.0)" />
     <PackageReference Include="Umbraco.Cms.Api.Management" Version="[17.7.1, 19.0.0)" />
-    <!-- Supertext AI translation SDK; packed into nuget/ until it is on nuget.org (see nuget.config) -->
-    <PackageReference Include="Supertext.Sdk" Version="0.1.0-preview.6468cf6" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The Supertext SDK, bundled (namespace Supertext.Umbraco.Translation.Sdk): see lib/supertext-sdk/README.md -->
+    <Compile Include="../../lib/supertext-sdk/src/*.cs" Link="Sdk/%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Supertext.Umbraco.Translation.Tests" />

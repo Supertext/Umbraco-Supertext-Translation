@@ -16,18 +16,17 @@ For administrators setting up the package on an Umbraco site.
 
 ## 1. Add the package
 
-The package is not on NuGet yet, and neither is the [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) (`Supertext.Sdk`) it uses to talk to Supertext. Build the package from the repository and add it from a local folder; the repository's `nuget/` folder holds the matching SDK package:
+The package is not on NuGet yet. Build it from the repository and add it from a local folder (it contains the [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide) it uses; there is nothing else to install):
 
 ```bash
 git clone https://github.com/Supertext/Umbraco-Supertext-Translation
 dotnet pack Umbraco-Supertext-Translation/src/Supertext.Umbraco.Translation -c Release -o ./packages
-cp Umbraco-Supertext-Translation/nuget/*.nupkg ./packages/
 # in your Umbraco project:
 dotnet nuget add source /path/to/packages --name supertext-local
 dotnet add package Supertext.Umbraco.Translation --version 0.1.0
 ```
 
-(Or reference `src/Supertext.Umbraco.Translation/Supertext.Umbraco.Translation.csproj` from your solution and add the repository's `nuget/` folder as a package source.)
+(Or reference `src/Supertext.Umbraco.Translation/Supertext.Umbraco.Translation.csproj` from your solution.)
 
 Restart the site. The package registers itself; there is nothing to enable in the backoffice.
 
