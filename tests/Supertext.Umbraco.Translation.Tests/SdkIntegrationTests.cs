@@ -63,6 +63,39 @@ public class SdkIntegrationTests
         Assert.True(handler.Deleted);
     }
 
+    [Fact]
+    public async Task UnknownLanguageShowsTheLanguagePairMessage()
+    {
+        // The live API answers a language it doesn't know at all with HTTP 404 INVALID_LANGUAGE_PAIR.
+        var factory = new SupertextClientFactory(
+            new FakeHttpClientFactory(new UnknownLanguage()),
+            new FakeOptions(new SupertextOptions { ApiKey = "test-key", Endpoint = "https://api.supertext.com/v1", PollIntervalSeconds = 1 }));
+        var sdk = await Assert.ThrowsAsync<SupertextException>(() => factory.Create().TranslateTextsAsync(
+            new Dictionary<string, Segment> { ["0"] = new("Hello") }, "xx-YY", "en"));
+        Assert.Equal(SupertextErrorCodes.InvalidLanguagePair, sdk.Code);
+        Assert.Equal("languagePair", TranslationException.From(sdk).Code);
+    }
+
+    [Fact]
+    public async Task LocaleVariantsAreDropped()
+    {
+        var handler = new FakeSupertext();
+        var factory = new SupertextClientFactory(
+            new FakeHttpClientFactory(handler),
+            new FakeOptions(new SupertextOptions { ApiKey = "test-key", Endpoint = "https://api.supertext.com/v1", PollIntervalSeconds = 1 }));
+        await factory.Create().TranslateTextsAsync(new Dictionary<string, Segment> { ["0"] = new("Hello") }, "de_DE_formal", "en");
+        Assert.Contains("name=\"target_lang\"\r\n\r\nde-DE\r\n", handler.Upload);
+    }
+
+    private sealed class UnknownLanguage : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
+            {
+                Content = new StringContent("{\"error_code\":\"INVALID_LANGUAGE_PAIR\",\"source_lang\":\"en\",\"target_lang\":\"xx-YY\"}", Encoding.UTF8, "application/json"),
+            });
+    }
+
     /// <summary>Answers like the Supertext API; "translates" by putting "» " before every text node.</summary>
     private sealed class FakeSupertext : HttpMessageHandler
     {
