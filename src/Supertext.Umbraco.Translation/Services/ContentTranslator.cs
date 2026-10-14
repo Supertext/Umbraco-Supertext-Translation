@@ -2,8 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Supertext.Umbraco.Translation.Sdk;
-using Segment = Supertext.Umbraco.Translation.Sdk.Segment;
+using Supertext.Umbraco.Translation.Sdk.V1;
+using Segment = Supertext.Umbraco.Translation.Sdk.V1.Segment;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
 using Umbraco.Cms.Core.Models;
@@ -116,16 +116,10 @@ public sealed class ContentTranslator(
 
         if (segments.Count > 0)
         {
-            var language = Options.Languages.TryGetValue(target, out var l) ? l : null;
-            var sourceLanguage = Options.Languages.TryGetValue(source, out var s) ? s : null;
-            var code = LanguageCodes.Target(string.IsNullOrWhiteSpace(language?.Code) ? target : language.Code);
-            var sourceCode = LanguageCodes.Source(string.IsNullOrWhiteSpace(sourceLanguage?.Code) ? source : sourceLanguage.Code);
-            var politeness = (language?.Politeness ?? "").Trim().ToLowerInvariant() switch
-            {
-                "more" => Politeness.More,
-                "less" => Politeness.Less,
-                _ => Politeness.Default,
-            };
+            // No guessing: the mapping or an exact Supertext code, else unsupported_language (nothing is sent).
+            var code = LanguageMapping.Target(target, Options);
+            var sourceCode = LanguageMapping.Source(source, Options);
+            var politeness = LanguageMapping.PolitenessFor(target, Options);
             // One document per language; the SDK splits only above ~900k characters.
             var translated = await clients.Create().TranslateTextsAsync(segments.Keyed(), code, sourceCode, politeness, cancellationToken: ct);
             foreach (var (key, text) in translated)

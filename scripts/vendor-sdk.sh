@@ -29,7 +29,11 @@ fi
 DEST="$ROOT/lib/supertext-sdk"
 rm -rf "$DEST"
 mkdir -p "$DEST/src"
-cp "$SRC"/sdk/dotnet/src/Supertext.Sdk/*.cs "$DEST/src/"
+# The version-neutral files (SdkInfo) and one folder per API version (V1/, namespace Supertext.Sdk.V1).
+(cd "$SRC/sdk/dotnet/src/Supertext.Sdk" && find . -name '*.cs' -not -path './bin/*' -not -path './obj/*') | while read -r f; do
+    mkdir -p "$DEST/src/$(dirname "$f")"
+    cp "$SRC/sdk/dotnet/src/Supertext.Sdk/$f" "$DEST/src/$f"
+done
 cp "$SRC/LICENSE" "$DEST/LICENSE"
 find "$DEST/src" -name '*.cs' -exec sed -i 's/\bSupertext\.Sdk\b/Supertext.Umbraco.Translation.Sdk/g' {} +
 printf '%s\n' "$COMMIT" > "$DEST/COMMIT"
@@ -38,7 +42,8 @@ cat > "$DEST/README.md" <<EOT
 # Supertext SDK (bundled copy)
 
 .NET part of the [Supertext SDK](https://github.com/Supertext/Supertext-API-SDK-and-Guide),
-version $VERSION, commit \`$COMMIT\`, namespace \`Supertext.Umbraco.Translation.Sdk\` instead of \`Supertext.Sdk\`.
+version $VERSION, commit \`$COMMIT\`, namespace \`Supertext.Umbraco.Translation.Sdk\` instead of \`Supertext.Sdk\`
+(the API v1 classes in \`Supertext.Umbraco.Translation.Sdk.V1\`, folder \`src/V1/\`).
 Compiled into Supertext.Umbraco.Translation.dll (see the package's \`.csproj\`).
 
 Don't edit these files: fix the SDK in its own repository, then run \`scripts/vendor-sdk.sh\`.

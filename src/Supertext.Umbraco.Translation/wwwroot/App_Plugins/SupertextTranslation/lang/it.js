@@ -41,7 +41,7 @@ export default {
       `Non ha ancora un account Supertext? Ne crei uno su ${SIGNUP}. ` +
       `Generi la Sua chiave API su ${API_KEY} (supertext.com → Integrations → API, richiede il ruolo Admin).`,
     error_unreachable: 'Impossibile raggiungere Supertext.',
-    error_languagePair: 'Supertext non supporta questa coppia di lingue. Verifichi i codici lingua nelle impostazioni Supertext.',
+    error_languagePair: 'Supertext non supporta questa coppia di lingue. Verifichi l’associazione delle lingue (Supertext:Languages:<culture>:Code, vedere Impostazioni › Supertext).',
     error_notFound: 'La risorsa Supertext richiesta non è stata trovata.',
     error_tooLarge: 'Il contenuto è troppo grande per essere tradotto da Supertext in una sola volta.',
     error_rateLimited: 'Troppe richieste a Supertext. Riprovi tra poco.',
@@ -53,5 +53,56 @@ export default {
     error_fileDeleted: 'Il file Supertext è stato eliminato prima di poter essere scaricato.',
     error_timeout: 'Tempo scaduto in attesa della traduzione Supertext.',
     error_emptyTranslation: 'La traduzione di Supertext era vuota o incompleta.',
+
+    notMapped: 'non associata',
+    notMappedHint: (culture) => `${culture} non è ancora associata a una lingua Supertext. Il Suo amministratore può associarla in Impostazioni › Supertext.`,
+    error_unsupportedLanguage: (language) =>
+      `La lingua ${language} non è ancora associata a una lingua Supertext. Chieda al Suo amministratore di associarla (Supertext:Languages:${language}:Code in appsettings.json, ad es. "de-CH").`,
+    error_unsupportedFeature:
+      'Supertext non offre un tono formale o informale per questa lingua. Chieda al Suo amministratore di impostare il tono predefinito (Supertext:Languages:<culture>:Politeness).',
+
+    dashboardLabel: 'Supertext',
+    dashboardHeadline: 'Supertext Translation',
+    dashboardLoadFailed: 'Impossibile caricare le impostazioni Supertext.',
+    version: 'Versione',
+    endpoint: 'Endpoint API',
+    apiKey: 'Chiave API',
+    apiKeySet: 'Impostata',
+    apiKeyNotSet: 'Non impostata (Supertext:ApiKey o SUPERTEXT_API_KEY)',
+    keyCheck: 'Verifica della chiave API',
+    checkedAt: (time) => `verificata ${time}`,
+    notChecked: 'Non ancora verificata.',
+    checkKey: 'Verifica chiave API',
+    checkFailed: 'Non è stato possibile verificare la chiave API.',
+    keycheck_ok: 'Chiave API verificata: la connessione a Supertext funziona.',
+    keycheck_invalid:
+      `Supertext ha rifiutato la chiave API. Verifichi di aver copiato l'intera chiave oppure ne generi una nuova su <a href="${API_KEY}" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (richiede il ruolo Admin). ` +
+      `Non ha ancora un account Supertext? Ne crei uno su <a href="${SIGNUP}" target="_blank" rel="noopener">supertext.com</a>.`,
+    keycheck_missing:
+      `Non è ancora stata inserita alcuna chiave API. Non ha ancora un account Supertext? Ne crei uno su <a href="${SIGNUP}" target="_blank" rel="noopener">supertext.com</a>. ` +
+      `Generi la Sua chiave API su <a href="${API_KEY}" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (richiede il ruolo Admin).`,
+    keycheck_unreachable: 'Non è stato possibile verificare la chiave API perché Supertext non è raggiungibile. Le impostazioni sono salvate; riprovi più tardi.',
+    keycheck_error: (status) => `Non è stato possibile verificare la chiave API: Supertext ha risposto con un errore (${status}). Le impostazioni sono salvate; riprovi più tardi.`,
+    reports: 'Inviare le informazioni sulla versione a Supertext',
+    reportsOn: 'Attivo',
+    reportsOff: 'Disattivato',
+    reportsHelp:
+      "Invia a Supertext l'URL del sito e le versioni di questo pacchetto, di Umbraco e dell'ambiente di esecuzione dopo un aggiornamento e quando la chiave API cambia. In questo modo l'assistenza Supertext vede quale versione utilizza. Non vengono trasmessi contenuti, chiavi API né dati personali.",
+    reportsHow: 'Per disattivarlo, imposti Supertext:SendVersionReports su false in appsettings.json oppure la variabile d’ambiente SUPERTEXT_VERSION_REPORTS=0.',
+    pingUrl: 'Supertext verifica che il sito sia raggiungibile all’indirizzo',
+    languagesHeadline: 'Lingue',
+    languagesHint:
+      'Ogni lingua Umbraco ha bisogno di una lingua Supertext: il suo codice ISO se è un codice Supertext (ad es. de-CH, es), altrimenti una voce Supertext:Languages:<culture>:Code in appsettings.json. Le lingue senza associazione non possono essere tradotte.',
+    umbracoLanguage: 'Lingua Umbraco',
+    supertextLanguage: 'Lingua Supertext',
+    tone: 'Formale/informale',
+    fromMapping: 'dall’associazione',
+    exactMatch: 'stesso codice',
+    notMappedLong: (culture) => `Non associata: aggiunga Supertext:Languages:${culture}:Code`,
+    formal: 'formale',
+    informal: 'informale',
+    defaultTone: 'predefinito',
+    noPoliteness: 'Supertext non offre una scelta formale/informale per questa lingua',
+    hiddenInDialog: 'nascosta nella finestra di dialogo',
   },
 };

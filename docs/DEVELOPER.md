@@ -10,8 +10,14 @@ Backoffice: "Translate with Supertext" (workspace action + entity action)
                                   ── GET  …/supertext/languages?documentId=
                                   ── POST …/supertext/translate {documentId, sourceCulture, targetCultures[], overwrite}
 Server: SupertextTranslationController (Management API, SectionAccessContent + Update permission per culture)
-   └─ ContentTranslator ── per target culture: collect segments → bundled Supertext SDK TranslateTextsAsync (one HTML document)
+   └─ ContentTranslator ── per target culture: LanguageMapping (culture → Supertext code) → collect segments
+                        │   → bundled Supertext SDK TranslateTextsAsync (one HTML document)
                         └─ SetCultureName / SetValue(culture) → IContentService.Save (draft)
+Backoffice: Settings › Supertext (settings-dashboard.js) ── GET  …/supertext/settings
+                                                         ── POST …/supertext/settings/check-key
+Server: SupertextSettingsController (Management API, SectionAccessSettings)
+Public: GET /umbraco/supertext/ping?challenge=  (SupertextPingController, anonymous; Commando Center)
+All back-office endpoints → SupertextReporting (SDK InstallationReporter, in the background) → state in umbracoKeyValue
 ```
 
 | Part | Role |
@@ -20,10 +26,15 @@ Server: SupertextTranslationController (Management API, SectionAccessContent + U
 | `wwwroot/App_Plugins/SupertextTranslation/lang/` | UI strings: `en.js`, `de.js`, `fr.js`, `it.js`, registered as `localization` extensions in `umbraco-package.json`. See *UI strings* below. |
 | `Controllers/SupertextTranslationController` | `ManagementApiControllerBase`, `[VersionedApiBackOfficeRoute("supertext")]`. Checks `ContentPermissionResource.WithKeys(ActionUpdate.ActionLetter, document, targetCultures)`. |
 | `Services/ContentTranslator` | Copies every culture-variant property from the source culture to each target; registers translatable text as segments with "rebuild" closures; translates them per target language with the SDK's `TranslateTextsAsync` (one document; the SDK splits only above ~900k characters); writes values and the culture name; saves once. Existing target languages are skipped unless `overwrite` (the dialog asks). |
-| `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Umbraco.Translation.Sdk.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext". |
+| `wwwroot/App_Plugins/SupertextTranslation/settings-dashboard.js` | The *Supertext* dashboard in the Settings section (`dashboard` extension, condition `Umb.Section.Settings`): version, endpoint, API key set, latest key check with *Check API key*, the version reports setting and ping URL, and every Umbraco language with its Supertext code (*same code* / *from the mapping* / *Not mapped*) and tone (warning where Supertext has none). Read-only: settings live in appsettings.json / the environment. |
+| `Controllers/SupertextSettingsController` | `GET settings` (dashboard data; also reports `onRequest`), `POST settings/check-key` (`testConnection`). `SectionAccessSettings`. |
+| `Controllers/SupertextPingController` | Plain `ControllerBase`, `[AllowAnonymous]`, `GET /umbraco/supertext/ping`: copies status, headers and body of the SDK's `PingResponse.For(challenge, "Umbraco-Supertext-Translation", enabled)`. |
+| `Services/SupertextReporting` | The Commando Center glue (see *Version reports and the API key check*). |
+| `Services/LanguageMapping` | Culture → Supertext code with the SDK's `Languages` (see *Language codes*); `Resolve` for the dashboard and the dialog. |
+| `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Umbraco.Translation.Sdk.V1.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext"; `PackageVersion` is the assembly's informational version (the `.csproj` `Version`). |
 | `Api/TranslationException` | Errors for the backoffice: `Code` is the suffix of `supertext_error_…` in `lang/*.js`. `From()` maps the SDK's error codes (`SupertextErrorCodes`) to these codes. |
-| `Configuration/SupertextOptions` | `Supertext` section; `SUPERTEXT_API_KEY` / `SUPERTEXT_API_ENDPOINT` win. |
-| `Composing/SupertextComposer` | Options, named `HttpClient`, client factory, scoped translator. |
+| `Configuration/SupertextOptions` | `Supertext` section; `SUPERTEXT_API_KEY` / `SUPERTEXT_API_ENDPOINT` win; `SendVersionReports` (`SUPERTEXT_VERSION_REPORTS` wins, via the SDK); `LanguageMapping` = the non-blank `Languages.<culture>.Code` values. |
+| `Composing/SupertextComposer` | Options, named `HttpClient`, client factory, scoped translator, reporter state store, `InstallationInfo` (package and Umbraco version), `SupertextReporting` (singletons). |
 
 **Value formats** the translator understands:
 
@@ -44,9 +55,9 @@ All text the backoffice shows comes from the localization files in `wwwroot/App_
 
 The package talks to Supertext through the official **Supertext SDK for .NET** ([Supertext-API-SDK-and-Guide](https://github.com/Supertext/Supertext-API-SDK-and-Guide/tree/main/sdk/dotnet), MIT). The SDK implements the protocol below, the HTML packing (one `data-st-id` element per field), the language code rules, the 429 retries and stable error codes; it is tested against the shared test vectors of all Supertext SDKs. The package only collects values, maps languages and writes the results back.
 
-**Bundled copy:** the SDK's sources live in `lib/supertext-sdk/` (`src/*.cs`, `LICENSE`, `COMMIT` with the SDK commit, `VERSION` with the SDK's package version, a short README), with the namespace changed from `Supertext.Sdk` to `Supertext.Umbraco.Translation.Sdk`, and are compiled into `Supertext.Umbraco.Translation.dll` (`<Compile Include>` in the `.csproj`). Sites install only this package; a site that also references the `Supertext.Sdk` NuGet package can't get a clash or version conflict. This stays so after the SDK is on nuget.org.
+**Bundled copy:** the SDK's sources live in `lib/supertext-sdk/` (`src/SdkVersion.cs` and `src/V1/*.cs`, `LICENSE`, `COMMIT` with the SDK commit, `VERSION` with the SDK's package version, a short README), with the namespace changed from `Supertext.Sdk` to `Supertext.Umbraco.Translation.Sdk` (the API v1 classes are in `…Sdk.V1`; only `SdkInfo.Version` is outside it), and are compiled into `Supertext.Umbraco.Translation.dll` (`<Compile Include>` in the `.csproj`). Sites install only this package; a site that also references the `Supertext.Sdk` NuGet package can't get a clash or version conflict. This stays so after the SDK is on nuget.org.
 
-- Update it with `scripts/vendor-sdk.sh [commit-or-branch]` (default `main`; `SDK_DIR=<clone>` uses a local clone), run the tests, and commit with a CHANGELOG entry.
+- Update it with `scripts/vendor-sdk.sh [commit-or-branch]` (default `main`; `SDK_DIR=<clone>` uses a local clone; it copies every `.cs` file below `sdk/dotnet/src/Supertext.Sdk/` with its folder, `bin/` and `obj/` excluded), run the tests, and commit with a CHANGELOG entry. The `.csproj` compiles `lib/supertext-sdk/src/**/*.cs`.
 - Never edit the copy: fix the SDK in its own repository, then re-run the script.
 
 ## Supertext API protocol
@@ -62,20 +73,36 @@ Header `Authorization: Supertext-Auth-Key <key>` (the SDK strips a pasted prefix
 
 ## Language codes
 
-Supertext wants the **source** as a bare language (`en`) and the **target** as a regional code (`de-DE`, `fr-CH`, `en-US`); a bare target such as `de` is rejected with `INVALID_LANGUAGE_PAIR`. `src/Supertext.Umbraco.Translation/Api/LanguageCodes.cs` (no CMS dependency, unit-tested in `LanguageCodesTests`) turns cultures into Supertext codes:
+Supertext accepts exactly the codes of its `GET features` list (the SDK's `Languages.Targets` / `Languages.Sources`, from the live API): bare sources (`en`, `de`); targets in one exact form each, regional for German, English, French, Italian and Portuguese (`de-CH`, `en-US`, `pt-BR`), with a script for Chinese and Serbian (`zh-Hans`, `sr-Latn`), a dialect for Swiss German (`gsw-u-sd-chzh`), bare for the others (`es`, `nl`, `sl`). Anything else is HTTP 404 `INVALID_LANGUAGE_PAIR` (`invalid_language_pair`); formal/informal for a target without it (`en-US`, `rm`, …) is HTTP 400 `FEATURE_ERROR` (`unsupported_feature`).
 
-- **Target** (`LanguageCodes.Target`): the `Supertext:Languages:<culture>:Code` override if set, else the culture. It is normalized (`de_ch`/`de-ch` → `de-CH`, `zh-hant` → `zh-Hant`, `es-419` stays, variants and extensions are dropped: `de_DE_formal` → `de-DE`); a code without region gets a default region: ar-SA, bg-BG, cs-CZ, da-DK, de-DE, el-GR, en-US, es-ES, et-EE, fi-FI, fr-FR, hr-HR, hu-HU, it-IT, ja-JP, ko-KR, lt-LT, lv-LV, nb-NO, nl-NL, pl-PL, pt-PT, ro-RO, ru-RU, sk-SK, sl-SI, sr-RS, sv-SE, th-TH, tr-TR, uk-UA, vi-VN, zh-CN (the same table as the Shopify app). Unknown bare codes are sent unchanged, so Supertext's error names them. A language Supertext doesn't know at all comes back as HTTP 404 with `INVALID_LANGUAGE_PAIR`; the SDK reports it as `invalid_language_pair`, so editors see the language pair message (`supertext_error_languagePair`), not *not found*.
-- **Source** (`LanguageCodes.Source`): the bare language of the source culture's override if set, else of the culture (`en-US` → `en`).
+`Services/LanguageMapping.cs` resolves Umbraco cultures with the SDK, **without guessing** (the same rules in every Supertext plugin):
+
+- **Target** (`Languages.Target(culture, mapping)`): the mapping `Supertext:Languages:<culture>:Code` wins (sent as it is, trimmed); else a culture that equals a Supertext code apart from case and `_`/`-` (`de-CH`, `fr_ch` → `fr-CH`, `es`); else the SDK throws `unsupported_language` (with `TargetLang`) and nothing is sent for that language. There are no default regions any more: `de` must be mapped (to `de-DE`, `de-CH` or `de-AT`); the old defaults `es-ES`, `sl-SI`, `zh-CN` were rejected by the live API.
+- **Source** (`Languages.Source(culture, mapping)`): the same mapping, sent in its source form (`de-CH` → `de`, done by the SDK since 0.2.1), else the culture's Supertext source (`en-US` → `en`), else `unsupported_language`.
+- **Politeness** is sent as configured; `Languages.SupportsPoliteness(code)` tells the dashboard to warn where Supertext has none (rather than silently dropping the administrator's value).
+- `TranslationException` maps `unsupported_language` to `unsupportedLanguage` (argument: the culture) and `unsupported_feature` to `unsupportedFeature`; the dialog marks unmapped languages *not mapped* (`supertextCode: null` in `GET languages`) and doesn't preselect them.
 - Translating within one language (`en-US` → `en-GB`) is allowed.
 
-The stand-in (`Tests/Docs/stand-in.mjs`) rejects targets without region like the live API.
+The stand-in (`Tests/Docs/stand-in.mjs`) accepts only the codes of Supertext's list, like the live API.
+
+## Version reports and the API key check
+
+The package implements the Commando Center's *Report protocol* (Commando-Center-Supertext-Translation → `docs/DEVELOPER.md`) with the SDK's `InstallationReporter`, `PingResponse` and `Reporting.ReportsEnabled`; `Services/SupertextReporting.cs` only supplies what Umbraco knows and stores the state.
+
+- **Reporter options:** plugin `Umbraco-Supertext-Translation` (the GitHub repository name) with `SupertextClientFactory.PackageVersion`; system `Umbraco` with `IUmbracoVersion.SemanticVersion` (without build); runtime and SDK version from the SDK's defaults; site URL = `WebRouting:UmbracoApplicationUrl`, else the request's scheme, host and path base; callback = `<site URL>/umbraco/supertext/ping`; the client options (endpoint, User-Agent, the named `HttpClient`) for the key check. `SUPERTEXT_REPORT_URL` overrides the center's URL (tests, local demo).
+- **When:** settings live in appsettings.json / the environment, so there is no "settings saved" (and no `afterSettingsSaved`). `OnRequest` runs on every back-office endpoint of the package (`status`, `languages`, `translate`, `settings`): it checks the key only when its fingerprint changed and reports only what changed (`installed`, `upgraded`, `api_key_check`). `AuthenticationFailed` runs when a translation got 401/403 (instead of `OnRequest`). `TestConnection` runs on the dashboard's *Check API key* and returns the check. There is no `check` CLI command.
+- **Never blocking:** back-office requests start the reporter with `InBackground` (`Task.Run` with the execution context suppressed, so no ambient Umbraco scope flows in); only *Check API key* waits for it. Calls are serialized (`SemaphoreSlim`), and `RunAsync` catches everything (the SDK never throws; storage errors are logged at debug level and swallowed).
+- **State:** the SDK's `ReporterState` JSON in Umbraco's key-value table (`IKeyValueService`, key `Supertext.Umbraco.Translation.ReporterState`): last reported version set, key status, last failure, the latest key check (status, time, HTTP status, error code, key fingerprint). Never the key.
+- **Setting:** `Supertext:SendVersionReports` (default `true`); `SUPERTEXT_VERSION_REPORTS` (`0`/`false`/`off`, `1`/`true`/`on`) wins, through `Reporting.ReportsEnabled`. Off: nothing is sent and the ping answers 404; the key check still runs.
+- **Ping:** `SupertextPingController` (anonymous, outside the Management API, `ApiExplorerSettings(IgnoreApi)`), answering exactly the SDK's `PingResponse` (`Cache-Control: no-store`). `/umbraco/` is one of Umbraco's reserved paths, so content routing never takes it.
+- **Dashboard texts:** the key check messages (`keycheck_<status>`) and the setting's label and help text are the center's, in en/de/fr/it (help text adapted: there is no settings save, reports follow updates and key changes).
 
 ## Local development
 
 .NET 10 SDK and Node 20+ (stand-in API, screenshots).
 
 ```bash
-cd Tests/Docs && npm install && STAND_IN_PREFIX=1 node stand-in.mjs &   # untranslated text comes back as "[de-CH] …"
+cd Tests/Docs && npm install && STAND_IN_PREFIX=1 node stand-in.mjs &   # untranslated text comes back as "[de-CH] …"; also a fake center (POST /report)
 cd demo/SupertextDemo
 export DEMO_ADMIN_EMAIL=admin@example.com DEMO_ADMIN_PASSWORD='choose-10+chars' \
        DEMO_EDITOR_EMAIL=editor@example.com DEMO_EDITOR_PASSWORD='choose-10+chars' \
@@ -83,7 +110,8 @@ export DEMO_ADMIN_EMAIL=admin@example.com DEMO_ADMIN_PASSWORD='choose-10+chars' 
        Umbraco__CMS__Unattended__UnattendedUserPassword=$DEMO_ADMIN_PASSWORD \
        Umbraco__CMS__WebRouting__UmbracoApplicationUrl=http://127.0.0.1:8095 \
        Umbraco__CMS__Global__UseHttps=false \
-       SUPERTEXT_API_KEY=test SUPERTEXT_API_ENDPOINT=http://127.0.0.1:8765/v1/
+       SUPERTEXT_API_KEY=test SUPERTEXT_API_ENDPOINT=http://127.0.0.1:8765/v1/ \
+       SUPERTEXT_REPORT_URL=http://127.0.0.1:8765/report   # version reports go to the stand-in, never the live center
 dotnet run --urls http://127.0.0.1:8095
 ```
 
@@ -97,11 +125,14 @@ Two Umbraco 17 settings matter for local HTTP:
 ## Tests
 
 ```bash
-dotnet test tests/Supertext.Umbraco.Translation.Tests    # SDK glue: error code mapping, client factory round trip (fake HTTP)
+dotnet test tests/Supertext.Umbraco.Translation.Tests    # SDK glue: error code mapping, client factory round trip, language mapping,
+                                                         # reporting (actions, state, ping, site URL) against fake Supertext/center HTTP
 node Tests/Localization/check-keys.mjs                   # UI strings complete in en, de, fr, it
 ```
 
 CI (`.github/workflows/ci.yml`) builds the package and the demo, runs the tests, syntax-checks the backoffice modules (and their language files), checks the UI strings and the demo entrypoint.
+
+`LanguageMappingTests` cover the no-guessing rules (exact codes, mapping in both directions, unmapped cultures, tone support); `ReportingTests` run `SupertextReporting` with an in-memory state store and a fake `HttpMessageHandler` for `GET features` and the center's `POST report` (installed report with versions and callback, no report without a change, 401/403 once, *Check API key*, reports off, broken storage, ping answers, site URL).
 
 End to end (manual, before a release): fresh demo with the stand-in (`STAND_IN_PREFIX=1`), translate *Features* into all three languages as the editor, check every text field and block text carries the marker (and URLs and code don't), translate again (overwrite warning), publish German and open `/de/funktionen/`. `Tests/Docs/screenshots.mjs` runs most of this automatically.
 
@@ -111,11 +142,11 @@ End to end (manual, before a release): fresh demo with the stand-in (`STAND_IN_P
 
 ```bash
 cd Tests/Docs && npm install && node stand-in.mjs &
-# start the demo fresh (see Local development), then:
+# start the demo fresh (see Local development, with SUPERTEXT_REPORT_URL), then:
 BASE_URL=http://127.0.0.1:8095 DEMO_EDITOR_EMAIL=… DEMO_EDITOR_PASSWORD=… DEMO_ADMIN_EMAIL=… DEMO_ADMIN_PASSWORD=… npm run screenshots
 ```
 
-New texts in the flow: run the stand-in with `STAND_IN_DUMP=<dir>` and translate what it writes to `<dir>/de-CH.json` into `sample-de.json`. `CHROMIUM_PATH` points Playwright at an installed Chromium.
+`ONLY=dashboard npm run screenshots` takes only the Settings › Supertext dashboard (`supertext-dashboard.png`; needs no fresh demo). New texts in the flow: run the stand-in with `STAND_IN_DUMP=<dir>` and translate what it writes to `<dir>/de-CH.json` into `sample-de.json`. `CHROMIUM_PATH` points Playwright at an installed Chromium.
 
 ## Demo (Railway)
 
@@ -143,7 +174,7 @@ The public demo is a container built from `demo/Dockerfile`: Umbraco 17 LTS with
 
 Umbraco's installer screen never appears: the install is unattended.
 
-**Service variables:** `DEMO_*` (above), `SUPERTEXT_API_KEY`, optional `SUPERTEXT_API_ENDPOINT`, `APP_URL` (public URL; defaults to `https://$RAILWAY_PUBLIC_DOMAIN`), `PORT=8080` (the domain's target port), `RAILWAY_DOCKERFILE_PATH=demo/Dockerfile`.
+**Service variables:** `DEMO_*` (above), `SUPERTEXT_API_KEY`, optional `SUPERTEXT_API_ENDPOINT`, optional `SUPERTEXT_VERSION_REPORTS=0` (the demo reports to the Commando Center like any installation), `APP_URL` (public URL; defaults to `https://$RAILWAY_PUBLIC_DOMAIN`), `PORT=8080` (the domain's target port), `RAILWAY_DOCKERFILE_PATH=demo/Dockerfile`.
 
 **Run it locally:**
 
@@ -185,3 +216,4 @@ Publishing to NuGet stays manual: `dotnet pack src/Supertext.Umbraco.Translation
 - Media alt texts, dictionary items and tags are not translated.
 - Human (professional) translation orders are not supported yet.
 - Tested on Umbraco 17.7 with the stand-in API; not yet against the live API or on Umbraco 18.
+- Settings (API key, language mapping, version reports) are read from appsettings.json / the environment; the dashboard shows them but can't edit them. An editable settings screen would add `afterSettingsSaved` reports and a select of Supertext languages per Umbraco language.

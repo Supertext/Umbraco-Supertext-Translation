@@ -8,8 +8,10 @@
  *   DEMO_EDITOR_EMAIL / DEMO_EDITOR_PASSWORD  editor account (translates and publishes)
  *   DEMO_ADMIN_EMAIL / DEMO_ADMIN_PASSWORD    admin account (settings screens)
  *   CHROMIUM_PATH                             optional Chromium binary
+ *   ONLY=dashboard                            only the Settings › Supertext dashboard (any demo state)
  *
- * The demo must not have translations of "Features" yet (fresh database).
+ * The demo must not have translations of "Features" yet (fresh database). Start it with
+ * SUPERTEXT_REPORT_URL=http://127.0.0.1:8765/report so its version reports go to the stand-in.
  */
 import { chromium } from 'playwright';
 
@@ -88,6 +90,26 @@ async function publishGerman(page, screenshot) {
   if (screenshot) await shot(page, screenshot, { x: 400, y: 283, width: 600, height: 334 });
   await page.getByRole('button', { name: 'Save and publish', exact: true }).last().click();
   await page.waitForTimeout(3000);
+}
+
+/** Settings › Supertext: configuration, API key check, version reports, languages. */
+async function dashboard() {
+  const admin = await login(ADMIN);
+  await admin.goto(`${B}/umbraco/section/settings/dashboard/supertext`);
+  await admin.getByText('Send version information to Supertext').first().waitFor({ timeout: 30000 });
+  await admin.getByRole('button', { name: 'Check API key' }).click();
+  await admin.getByText('API key checked').first().waitFor({ timeout: 30000 });
+  await admin.waitForTimeout(800);
+  const box = await admin.locator('supertext-settings-dashboard').boundingBox();
+  await shot(admin, 'supertext-dashboard', { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, 900 - box.y) });
+  await admin.context().close();
+}
+
+if (process.env.ONLY === 'dashboard') {
+  await dashboard();
+  await browser.close();
+  console.log(`Screenshot written to ${OUT}/supertext-dashboard.png`);
+  process.exit(0);
 }
 
 // --- User guide (editor) ----------------------------------------------------
@@ -191,6 +213,8 @@ await admin.getByText(/Culture and Hostnames/i).first().click();
 await admin.getByText('/de').first().waitFor({ timeout: 15000 }).catch(() => {});
 await admin.waitForTimeout(1200);
 await shot(admin, 'culture-hostnames', { x: 520, y: 0, width: 880, height: 560 }); // medium-size sidebar
+
+await dashboard();
 
 await browser.close();
 console.log(`Screenshots written to ${OUT}`);

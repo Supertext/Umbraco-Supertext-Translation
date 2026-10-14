@@ -7,7 +7,9 @@
  * with "[<target_lang>] " when STAND_IN_PREFIX=1, which makes untranslated text
  * easy to spot in tests. STAND_IN_DUMP=<dir> writes each submitted document's
  * untranslated segments to <dir>/<target_lang>.json (to extend the samples).
- * Listens on :8765 (PORT), accepts any API key.
+ * Listens on :8765 (PORT), accepts any API key. Also answers POST /report with 202 (a stand-in
+ * Commando Center: point SUPERTEXT_REPORT_URL at http://127.0.0.1:8765/report so local demos and
+ * screenshots never report to the live center).
  */
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
@@ -25,6 +27,10 @@ const sampleFor = (lang) => {
   return samples.get(primary);
 };
 const files = new Map();
+// The target codes Supertext accepts (GET features, October 2026; the SDK's Languages.Targets).
+const TARGETS = new Set(['bg', 'cs', 'da', 'de-AT', 'de-CH', 'de-DE', 'el', 'en-GB', 'en-US', 'es', 'fi', 'fr-CH', 'fr-FR',
+  'gsw-u-sd-chbe', 'gsw-u-sd-chzh', 'hr', 'hu', 'it-CH', 'it-IT', 'ja', 'ko', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'rm', 'ru',
+  'sk', 'sl', 'sq', 'sr-Cyrl', 'sr-Latn', 'sv', 'tr', 'zh-Hans', 'zh-Hant']);
 const prefix = process.env.STAND_IN_PREFIX === '1';
 
 http
@@ -34,6 +40,13 @@ http
       res.writeHead(status, { 'Content-Type': type });
       res.end(type === 'application/json' ? JSON.stringify(body) : body);
     };
+    if (req.method === 'POST' && path === '/report') {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const report = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+      console.log(`POST /report event=${report.event} plugin=${report.plugin?.name}@${report.plugin?.version} key_check=${report.api_key_check?.status ?? '-'}`);
+      return send(202, { ok: true });
+    }
     if (!/^Supertext-Auth-Key \S+$/.test(req.headers.authorization || '')) return send(401, { error: 'missing key' });
     if (path === '/features') return send(200, {});
     if (req.method === 'POST' && path === '/translate/ai/file') {
@@ -47,8 +60,8 @@ http
         return send(400, { error: 'INVALID_MULTIPART' });
       }
       const target = String(form.get('target_lang') || '');
-      // Like the live API: a target without region (e.g. "de") is not a valid pair.
-      if (!/^[a-z]{2,3}-([A-Z]{2}|[A-Z][a-z]{3}|\d{3})$/.test(target)) {
+      // Like the live API: only the exact codes of its language list ("de", "es-ES", "zh-CN" are rejected).
+      if (!TARGETS.has(target)) {
         console.log(`POST target_lang=${target} rejected: INVALID_LANGUAGE_PAIR`);
         return send(400, { error_code: 'INVALID_LANGUAGE_PAIR', source_lang: form.get('source_lang'), target_lang: target });
       }

@@ -25,8 +25,16 @@ public sealed class SupertextOptions
     public int PollTimeoutSeconds { get; set; } = 240;
 
     /// <summary>
-    /// Optional per-language settings keyed by Umbraco culture (ISO code, e.g. "de-CH").
-    /// Without an entry the culture is sent to Supertext as is.
+    /// "Send version information to Supertext" (Commando Center): site URL, package, Umbraco, .NET
+    /// and SDK versions and the API key check result, never content, the key or personal data.
+    /// The environment variable SUPERTEXT_VERSION_REPORTS (0/false/off or 1/true/on) wins.
+    /// </summary>
+    public bool SendVersionReports { get; set; } = true;
+
+    /// <summary>
+    /// Per-language settings keyed by Umbraco culture (ISO code, e.g. "de-CH"). <c>Code</c> is the
+    /// language mapping: without it, a culture that is itself a Supertext code (de-CH, es, apart from
+    /// case and _/-) is used as it is, and any other culture can't be translated (no guessing).
     /// </summary>
     public Dictionary<string, SupertextLanguageOptions> Languages { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -41,6 +49,11 @@ public sealed class SupertextOptions
 
     /// <summary>Property aliases that are never translated (copied as they are).</summary>
     public List<string> ExcludedProperties { get; set; } = [];
+
+    /// <summary>The language mapping (Umbraco culture → Supertext code) from <c>Languages.&lt;culture&gt;.Code</c>.</summary>
+    internal IReadOnlyDictionary<string, string> LanguageMapping =>
+        Languages.Where(l => !string.IsNullOrWhiteSpace(l.Value.Code))
+            .ToDictionary(l => l.Key, l => l.Value.Code!.Trim(), StringComparer.OrdinalIgnoreCase);
 
     internal string EffectiveApiKey
     {
@@ -68,10 +81,14 @@ public sealed class SupertextOptions
 
 public sealed class SupertextLanguageOptions
 {
-    /// <summary>Target language code sent to Supertext, e.g. "de-CH". Default: the culture, with a default region if it has none (de → de-DE). As source, its language without region is sent.</summary>
+    /// <summary>
+    /// Supertext code for this culture, e.g. "de-CH" for the culture "de" (one of Supertext's codes, see
+    /// <c>Languages.Targets</c> of the SDK). Default: the culture itself if it is a Supertext code. As source,
+    /// its source form is sent (de-CH → de).
+    /// </summary>
     public string? Code { get; set; }
 
-    /// <summary>"more" (formal: Sie/vous/Lei), "less" (informal: du/tu) or "default".</summary>
+    /// <summary>"more" (formal: Sie/vous/Lei), "less" (informal: du/tu) or "default". Not every target offers it (English, Swiss German, Romansh, Albanian, Serbian don't).</summary>
     public string? Politeness { get; set; }
 
     /// <summary>False hides the language from the translate dialog.</summary>

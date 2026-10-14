@@ -1,7 +1,8 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Options;
-using Supertext.Umbraco.Translation.Sdk;
+using Supertext.Umbraco.Translation.Sdk.V1;
+using Supertext.Umbraco.Translation.Services;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
 using Xunit;
@@ -41,9 +42,8 @@ public class SdkIntegrationTests
     public async Task FactoryClientTranslatesThroughTheNamedHttpClient()
     {
         var handler = new FakeSupertext();
-        var factory = new SupertextClientFactory(
-            new FakeHttpClientFactory(handler),
-            new FakeOptions(new SupertextOptions { ApiKey = "Supertext-Auth-Key test-key", Endpoint = "https://api.supertext.com/v1", PollIntervalSeconds = 1 }));
+        var options = new SupertextOptions { ApiKey = "Supertext-Auth-Key test-key", Endpoint = "https://api.supertext.com/v1", PollIntervalSeconds = 1 };
+        var factory = new SupertextClientFactory(new FakeHttpClientFactory(handler), new FakeOptions(options));
         Assert.True(factory.HasApiKey);
         Assert.Equal("https://api.supertext.com/v1/", factory.Endpoint);
 
@@ -51,7 +51,7 @@ public class SdkIntegrationTests
         {
             ["0"] = new("Fish & Chips\nfor two"),
             ["1"] = new("<p>We ship <strong>Swiss chocolate</strong>.</p>", Html: true),
-        }, "de_ch", "en-US", Politeness.More);
+        }, LanguageMapping.Target("de_ch", options), LanguageMapping.Source("en-US", options), Politeness.More);
 
         Assert.Equal("» Fish & Chips\n» for two", result["0"]);
         Assert.Equal("<p>» We ship <strong>» Swiss chocolate</strong>» .</p>", result["1"]);
@@ -77,14 +77,15 @@ public class SdkIntegrationTests
     }
 
     [Fact]
-    public async Task LocaleVariantsAreDropped()
+    public void UnsupportedLanguageAndFeatureHaveBackofficeCodes()
     {
-        var handler = new FakeSupertext();
-        var factory = new SupertextClientFactory(
-            new FakeHttpClientFactory(handler),
-            new FakeOptions(new SupertextOptions { ApiKey = "test-key", Endpoint = "https://api.supertext.com/v1", PollIntervalSeconds = 1 }));
-        await factory.Create().TranslateTextsAsync(new Dictionary<string, Segment> { ["0"] = new("Hello") }, "de_DE_formal", "en");
-        Assert.Contains("name=\"target_lang\"\r\n\r\nde-DE\r\n", handler.Upload);
+        var unmapped = Assert.Throws<SupertextException>(() => LanguageMapping.Target("de", new SupertextOptions()));
+        var error = TranslationException.From(unmapped);
+        Assert.Equal("unsupportedLanguage", error.Code);
+        Assert.Equal(["de"], error.Args);
+
+        var feature = TranslationException.From(new SupertextException(SupertextErrorCodes.UnsupportedFeature, "No politeness.", status: 400, feature: "politeness"));
+        Assert.Equal("unsupportedFeature", feature.Code);
     }
 
     private sealed class UnknownLanguage : HttpMessageHandler
@@ -131,21 +132,5 @@ public class SdkIntegrationTests
 
         private static HttpResponseMessage Json(string json) =>
             new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
-    }
-
-    private sealed class FakeHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
-    {
-        public HttpClient CreateClient(string name)
-        {
-            Assert.Equal(SupertextClientFactory.HttpClientName, name);
-            return new HttpClient(handler, disposeHandler: false);
-        }
-    }
-
-    private sealed class FakeOptions(SupertextOptions value) : IOptionsMonitor<SupertextOptions>
-    {
-        public SupertextOptions CurrentValue => value;
-        public SupertextOptions Get(string? name) => value;
-        public IDisposable? OnChange(Action<SupertextOptions, string?> listener) => null;
     }
 }

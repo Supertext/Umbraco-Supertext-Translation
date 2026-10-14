@@ -1,4 +1,4 @@
-using Supertext.Umbraco.Translation.Sdk;
+using Supertext.Umbraco.Translation.Sdk.V1;
 
 namespace Supertext.Umbraco.Translation.Api;
 
@@ -23,6 +23,8 @@ public sealed class TranslationException(string code, string message, string[]? 
         [SupertextErrorCodes.MissingApiKey] = "noApiKey",
         [SupertextErrorCodes.AuthenticationFailure] = "authFailed",
         [SupertextErrorCodes.InvalidLanguagePair] = "languagePair",
+        [SupertextErrorCodes.UnsupportedLanguage] = "unsupportedLanguage",
+        [SupertextErrorCodes.UnsupportedFeature] = "unsupportedFeature",
         [SupertextErrorCodes.NotFound] = "notFound",
         [SupertextErrorCodes.PayloadTooLarge] = "tooLarge",
         [SupertextErrorCodes.TooManyRequests] = "rateLimited",
@@ -41,7 +43,12 @@ public sealed class TranslationException(string code, string message, string[]? 
     public static TranslationException From(SupertextException e)
     {
         var code = SdkCodes.TryGetValue(e.Code, out var c) ? c : "http";
-        string[] args = code == "http" ? [e.Status?.ToString() ?? "?"] : [];
+        string[] args = code switch
+        {
+            "http" => [e.Status?.ToString() ?? "?"],
+            "unsupportedLanguage" => [e.TargetLang ?? e.SourceLang ?? "?"],
+            _ => [],
+        };
         // The SDK's message already ends with " (detail)"; this class appends the detail itself.
         var suffix = e.Detail is null ? null : " (" + e.Detail + ")";
         var message = suffix is not null && e.Message.EndsWith(suffix, StringComparison.Ordinal) ? e.Message[..^suffix.Length] : e.Message;

@@ -44,7 +44,7 @@ export default {
       `No Supertext account yet? Create one at ${SIGNUP}. ` +
       `Generate your API key at ${API_KEY} (supertext.com → Integrations → API, requires the Admin role).`,
     error_unreachable: 'Could not reach Supertext.',
-    error_languagePair: 'Supertext does not support this language pair. Check the language codes in the Supertext settings.',
+    error_languagePair: 'Supertext does not support this language pair. Check the language mapping (Supertext:Languages:<culture>:Code, see Settings › Supertext).',
     error_notFound: 'The requested Supertext resource was not found.',
     error_tooLarge: 'The content is too large for Supertext to translate in one go.',
     error_rateLimited: 'Too many requests to Supertext. Please try again shortly.',
@@ -56,5 +56,59 @@ export default {
     error_fileDeleted: 'The Supertext file was deleted before it could be downloaded.',
     error_timeout: 'Timed out waiting for the Supertext translation.',
     error_emptyTranslation: 'The translation from Supertext was empty or incomplete.',
+
+    // Languages (no guessing: the mapping Supertext:Languages:<culture>:Code, else an exact Supertext code).
+    notMapped: 'not mapped',
+    notMappedHint: (culture) => `${culture} has no Supertext language yet. Your administrator can map it on Settings › Supertext.`,
+    error_unsupportedLanguage: (language) =>
+      `The language ${language} has no Supertext language yet. Ask your administrator to map it (Supertext:Languages:${language}:Code in appsettings.json, e.g. "de-CH").`,
+    error_unsupportedFeature:
+      'Supertext offers no formal or informal tone for this language. Ask your administrator to set it to the default tone (Supertext:Languages:<culture>:Politeness).',
+
+    // Supertext dashboard (Settings section)
+    dashboardLabel: 'Supertext',
+    dashboardHeadline: 'Supertext Translation',
+    dashboardLoadFailed: 'Could not load the Supertext settings.',
+    version: 'Version',
+    endpoint: 'API endpoint',
+    apiKey: 'API key',
+    apiKeySet: 'Set',
+    apiKeyNotSet: 'Not set (Supertext:ApiKey or SUPERTEXT_API_KEY)',
+    keyCheck: 'API key check',
+    checkedAt: (time) => `checked ${time}`,
+    notChecked: 'Not checked yet.',
+    checkKey: 'Check API key',
+    checkFailed: 'The API key could not be checked.',
+    // Results of the automatic API key check (texts of the Supertext Commando Center).
+    keycheck_ok: 'API key checked: the connection to Supertext works.',
+    keycheck_invalid:
+      `Supertext rejected the API key. Check that you copied the whole key, or generate a new one at <a href="${API_KEY}" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (requires the Admin role). ` +
+      `No Supertext account yet? Create one at <a href="${SIGNUP}" target="_blank" rel="noopener">supertext.com</a>.`,
+    keycheck_missing:
+      `No API key is set yet. No Supertext account yet? Create one at <a href="${SIGNUP}" target="_blank" rel="noopener">supertext.com</a>. ` +
+      `Generate your API key at <a href="${API_KEY}" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (requires the Admin role).`,
+    keycheck_unreachable: "The API key couldn't be checked because Supertext can't be reached. The settings are saved; check again later.",
+    keycheck_error: (status) => `The API key couldn't be checked: Supertext answered with an error (${status}). The settings are saved; check again later.`,
+    reports: 'Send version information to Supertext',
+    reportsOn: 'On',
+    reportsOff: 'Off',
+    reportsHelp:
+      'Sends the site URL and the versions of this package, Umbraco and the runtime to Supertext after an update and when the API key changes, so Supertext support can see which version you run. No content, no API key and no personal data are sent.',
+    reportsHow: 'To turn it off, set Supertext:SendVersionReports to false in appsettings.json or the environment variable SUPERTEXT_VERSION_REPORTS=0.',
+    pingUrl: 'Supertext checks that the site is reachable at',
+    languagesHeadline: 'Languages',
+    languagesHint:
+      'Each Umbraco language needs a Supertext language: its ISO code if that is a Supertext code (e.g. de-CH, es), otherwise an entry Supertext:Languages:<culture>:Code in appsettings.json. Languages without one can\'t be translated.',
+    umbracoLanguage: 'Umbraco language',
+    supertextLanguage: 'Supertext language',
+    tone: 'Formal/informal',
+    fromMapping: 'from the mapping',
+    exactMatch: 'same code',
+    notMappedLong: (culture) => `Not mapped: add Supertext:Languages:${culture}:Code`,
+    formal: 'formal',
+    informal: 'informal',
+    defaultTone: 'default',
+    noPoliteness: 'Supertext offers no formal/informal choice for this language',
+    hiddenInDialog: 'hidden in the dialog',
   },
 };

@@ -41,7 +41,7 @@ export default {
       `Noch kein Supertext-Konto? Erstellen Sie eines auf ${SIGNUP}. ` +
       `Generieren Sie Ihren API-Schlüssel auf ${API_KEY} (supertext.com → Integrations → API, erfordert die Admin-Rolle).`,
     error_unreachable: 'Supertext ist nicht erreichbar.',
-    error_languagePair: 'Supertext unterstützt dieses Sprachpaar nicht. Prüfen Sie die Sprachcodes in den Supertext-Einstellungen.',
+    error_languagePair: 'Supertext unterstützt dieses Sprachpaar nicht. Prüfen Sie die Sprachzuordnung (Supertext:Languages:<culture>:Code, siehe Einstellungen › Supertext).',
     error_notFound: 'Die angeforderte Supertext-Ressource wurde nicht gefunden.',
     error_tooLarge: 'Der Inhalt ist zu groß, um von Supertext in einem Durchgang übersetzt zu werden.',
     error_rateLimited: 'Zu viele Anfragen an Supertext. Bitte versuchen Sie es gleich noch einmal.',
@@ -53,5 +53,56 @@ export default {
     error_fileDeleted: 'Die Supertext-Datei wurde gelöscht, bevor sie heruntergeladen werden konnte.',
     error_timeout: 'Zeitüberschreitung beim Warten auf die Supertext-Übersetzung.',
     error_emptyTranslation: 'Die Übersetzung von Supertext war leer oder unvollständig.',
+
+    notMapped: 'nicht zugeordnet',
+    notMappedHint: (culture) => `${culture} ist noch keiner Supertext-Sprache zugeordnet. Ihre Administratorin oder Ihr Administrator kann sie unter Einstellungen › Supertext zuordnen.`,
+    error_unsupportedLanguage: (language) =>
+      `Die Sprache ${language} ist noch keiner Supertext-Sprache zugeordnet. Bitten Sie Ihre Administratorin oder Ihren Administrator, sie zuzuordnen (Supertext:Languages:${language}:Code in appsettings.json, z. B. "de-CH").`,
+    error_unsupportedFeature:
+      'Supertext bietet für diese Sprache keine formelle oder informelle Anrede an. Bitten Sie Ihre Administratorin oder Ihren Administrator, die Standard-Anrede einzustellen (Supertext:Languages:<culture>:Politeness).',
+
+    dashboardLabel: 'Supertext',
+    dashboardHeadline: 'Supertext Translation',
+    dashboardLoadFailed: 'Die Supertext-Einstellungen konnten nicht geladen werden.',
+    version: 'Version',
+    endpoint: 'API-Endpunkt',
+    apiKey: 'API-Schlüssel',
+    apiKeySet: 'Gesetzt',
+    apiKeyNotSet: 'Nicht gesetzt (Supertext:ApiKey oder SUPERTEXT_API_KEY)',
+    keyCheck: 'Prüfung des API-Schlüssels',
+    checkedAt: (time) => `geprüft ${time}`,
+    notChecked: 'Noch nicht geprüft.',
+    checkKey: 'API-Schlüssel prüfen',
+    checkFailed: 'Der API-Schlüssel konnte nicht geprüft werden.',
+    keycheck_ok: 'API-Schlüssel geprüft: Die Verbindung zu Supertext funktioniert.',
+    keycheck_invalid:
+      `Supertext hat den API-Schlüssel abgelehnt. Prüfen Sie, ob Sie den ganzen Schlüssel kopiert haben, oder erstellen Sie einen neuen unter <a href="${API_KEY}" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (erfordert die Rolle Admin). ` +
+      `Noch kein Supertext-Konto? Erstellen Sie eines auf <a href="${SIGNUP}" target="_blank" rel="noopener">supertext.com</a>.`,
+    keycheck_missing:
+      `Es ist noch kein API-Schlüssel eingetragen. Noch kein Supertext-Konto? Erstellen Sie eines auf <a href="${SIGNUP}" target="_blank" rel="noopener">supertext.com</a>. ` +
+      `Ihren API-Schlüssel erstellen Sie unter <a href="${API_KEY}" target="_blank" rel="noopener">supertext.com → Integrations → API</a> (erfordert die Rolle Admin).`,
+    keycheck_unreachable: 'Der API-Schlüssel konnte nicht geprüft werden, weil Supertext nicht erreichbar ist. Die Einstellungen sind gespeichert; prüfen Sie ihn später erneut.',
+    keycheck_error: (status) => `Der API-Schlüssel konnte nicht geprüft werden: Supertext hat mit einem Fehler geantwortet (${status}). Die Einstellungen sind gespeichert; prüfen Sie ihn später erneut.`,
+    reports: 'Versionsinformationen an Supertext senden',
+    reportsOn: 'Ein',
+    reportsOff: 'Aus',
+    reportsHelp:
+      'Sendet die URL der Website sowie die Versionen dieses Pakets, von Umbraco und der Laufzeitumgebung an Supertext, nach einem Update und wenn sich der API-Schlüssel ändert. So sieht der Supertext-Support, welche Version Sie einsetzen. Es werden keine Inhalte, kein API-Schlüssel und keine Personendaten übertragen.',
+    reportsHow: 'Zum Ausschalten setzen Sie Supertext:SendVersionReports in appsettings.json auf false oder die Umgebungsvariable SUPERTEXT_VERSION_REPORTS=0.',
+    pingUrl: 'Supertext prüft die Erreichbarkeit der Website unter',
+    languagesHeadline: 'Sprachen',
+    languagesHint:
+      'Jede Umbraco-Sprache braucht eine Supertext-Sprache: ihren ISO-Code, wenn er ein Supertext-Code ist (z. B. de-CH, es), sonst einen Eintrag Supertext:Languages:<culture>:Code in appsettings.json. Sprachen ohne Zuordnung können nicht übersetzt werden.',
+    umbracoLanguage: 'Umbraco-Sprache',
+    supertextLanguage: 'Supertext-Sprache',
+    tone: 'Formell/informell',
+    fromMapping: 'aus der Zuordnung',
+    exactMatch: 'gleicher Code',
+    notMappedLong: (culture) => `Nicht zugeordnet: Supertext:Languages:${culture}:Code ergänzen`,
+    formal: 'formell',
+    informal: 'informell',
+    defaultTone: 'Standard',
+    noPoliteness: 'Supertext bietet für diese Sprache keine formelle/informelle Anrede an',
+    hiddenInDialog: 'im Dialog ausgeblendet',
   },
 };

@@ -3,7 +3,9 @@ using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
 using Supertext.Umbraco.Translation.Services;
 using Umbraco.Cms.Core.Composing;
+using Umbraco.Cms.Core.Configuration;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Extensions;
 
 namespace Supertext.Umbraco.Translation.Composing;
 
@@ -17,5 +19,12 @@ public sealed class SupertextComposer : IComposer
         builder.Services.AddHttpClient(SupertextClientFactory.HttpClientName, http => http.Timeout = TimeSpan.FromSeconds(60));
         builder.Services.AddSingleton<SupertextClientFactory>();
         builder.Services.AddScoped<ContentTranslator>();
+
+        // Commando Center: version reports, API key check, ping (Services/SupertextReporting.cs).
+        builder.Services.AddSingleton<IReporterStateStore, KeyValueReporterStateStore>();
+        builder.Services.AddSingleton(sp => new InstallationInfo(
+            SupertextClientFactory.PackageVersion,
+            sp.GetRequiredService<IUmbracoVersion>().SemanticVersion.ToSemanticStringWithoutBuild()));
+        builder.Services.AddSingleton<SupertextReporting>();
     }
 }

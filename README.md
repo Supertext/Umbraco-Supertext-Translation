@@ -15,6 +15,8 @@ Works with Umbraco 17 LTS (tested) and 18, .NET 10.
 
 Languages that already have content are only replaced after a confirmation. If Supertext fails for a language, nothing changes for it, and the editor sees why.
 
+Administrators find the configuration, the automatic API key check and the Supertext language of each Umbraco language under **Settings › Supertext**. Cultures that aren't Supertext codes (e.g. `de` instead of `de-CH`) are mapped in appsettings.json; nothing is guessed. The package sends version information to Supertext (no content, no API key; can be turned off): see the installation guide.
+
 ## Documentation
 
 | Guide | For |

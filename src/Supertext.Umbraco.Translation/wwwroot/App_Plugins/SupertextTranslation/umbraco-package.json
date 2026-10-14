@@ -75,6 +75,23 @@
       }
     },
     {
+      "type": "dashboard",
+      "alias": "Supertext.Dashboard.Settings",
+      "name": "Supertext dashboard (Settings section)",
+      "element": "/App_Plugins/SupertextTranslation/settings-dashboard.js",
+      "weight": 10,
+      "meta": {
+        "label": "#supertext_dashboardLabel",
+        "pathname": "supertext"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Settings"
+        }
+      ]
+    },
+    {
       "type": "modal",
       "alias": "Supertext.Modal.Translate",
       "name": "Translate with Supertext dialog",

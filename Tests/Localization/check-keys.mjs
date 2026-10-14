@@ -27,7 +27,7 @@ const sources = readdirSync(pluginDir).filter((f) => f.endsWith('.js') || f.ends
 for (const file of sources) {
   const text = readFileSync(join(pluginDir, file), 'utf8');
   for (const [, key] of text.matchAll(/supertext_(\w+)/g)) {
-    if (key === 'error_') continue; // built from the server's error code
+    if (key.endsWith('_')) continue; // prefix of a key built at runtime (error_<code>, keycheck_<status>)
     if (!(key in en)) errors.push(`${file}: uses supertext_${key}, which en.js does not define`);
   }
 }
@@ -45,6 +45,11 @@ for (const file of walk(join(root, 'src/Supertext.Umbraco.Translation')).filter(
   for (const code of codes) {
     if (!(`error_${code}` in en)) errors.push(`${file.slice(root.length + 1)}: error code ${code} has no supertext_error_${code} in en.js`);
   }
+}
+
+// The dashboard shows the SDK's key check statuses as supertext_keycheck_<status>.
+for (const status of ['ok', 'invalid', 'missing', 'unreachable', 'error']) {
+  if (!(`keycheck_${status}` in en)) errors.push(`en.js: no supertext_keycheck_${status}`);
 }
 
 // Each language needs a localization manifest.

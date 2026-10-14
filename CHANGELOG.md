@@ -2,11 +2,15 @@
 
 ## Unreleased
 
+- Changed: **languages are no longer guessed.** An Umbraco culture that is a Supertext code (`de-CH`, `fr-CH`, `es`, `nl`, `zh-Hans`, apart from case and `_`/`-`) is used as it is; every other culture needs `Supertext:Languages:<culture>:Code` (the same setting as before, now the language mapping, used for source and target). The default regions are gone: they were wrong for most languages (Supertext wants `es`, `sl`, `nl` without region and `zh-Hans` instead of `zh-CN`). An unmapped language is marked *not mapped* in the dialog, and translating into it says *has no Supertext language yet*; nothing is sent for it. New message for *no formal or informal tone for this language* (English, German, French, Italian).
+- Added: **Settings › Supertext** dashboard: package version, API endpoint, whether a key is set, the latest automatic API key check with its time and a *Check API key* button, the version reports setting, and every Umbraco language with its Supertext code (*Not mapped* where one is missing) and tone (with a warning where Supertext offers none). English, German, French, Italian.
+- Added: automatic API key check (no cost) when the key changes, on *Check API key* and after Supertext rejects a translation's key.
+- Added: **Send version information to Supertext** (`Supertext:SendVersionReports`, on by default; `SUPERTEXT_VERSION_REPORTS=0` turns it off): after an update and when the key check result changes, the site URL, the versions of the package, Umbraco, .NET and the Supertext SDK and the key check result are sent to Supertext, never content, the API key or personal data. Public ping route `GET /umbraco/supertext/ping` (404 while reports are off). See the installation guide.
+- Changed: bundled Supertext SDK 0.2.1 (commit `eeba8fa`, `V1` namespace): the API's language list, the key check and the version reports.
+
 - Changed: the package now talks to Supertext through the official [Supertext SDK for .NET](https://github.com/Supertext/Supertext-API-SDK-and-Guide) instead of its own API client, HTML packer and language code rules. The SDK is compiled into the package, so there is nothing extra to install; HtmlAgilityPack is no longer referenced. Same behaviour.
 - Added: clear messages when Supertext rejects a language pair or returns an incomplete translation (English, German, French, Italian).
-- Fixed: cultures without a region (e.g. `de`, `fr`) are now sent to Supertext as `de-DE`, `fr-FR` (Supertext rejects targets without region); `Languages.<culture>.Code` is normalized (`de_ch` → `de-CH`) and, for the source language, sent without region.
 - Fixed: a target language Supertext doesn't know is now reported as an unsupported language pair (was: *The requested Supertext resource was not found*).
-- Fixed: locale variants such as `de_DE_formal` (in `Languages.<culture>.Code`) are sent to Supertext as `de-DE`.
 - Added: French and Italian interface (and German where it was missing). The button, dialog, notifications and error messages follow the backoffice user's UI culture (English, German, French, Italian); server errors are sent with a code so the dialog can show them in the user's language. The "Authentication failed" message now also links to Supertext account signup and API key generation.
 
 ## 0.1.0 — 2026-10-07

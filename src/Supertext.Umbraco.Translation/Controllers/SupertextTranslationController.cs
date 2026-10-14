@@ -2,12 +2,16 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Supertext.Umbraco.Translation.Api;
+using Supertext.Umbraco.Translation.Configuration;
+using Supertext.Umbraco.Translation.Sdk.V1;
 using Supertext.Umbraco.Translation.Services;
 using Umbraco.Cms.Api.Management.Controllers;
 using Umbraco.Cms.Api.Management.Routing;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Actions;
+using Umbraco.Cms.Core.Configuration.Models;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Security.Authorization;
 using Umbraco.Cms.Web.Common.Authorization;
@@ -24,9 +28,13 @@ public sealed class SupertextTranslationController(
     ContentTranslator translator,
     SupertextClientFactory clients,
     IAuthorizationService authorizationService,
-    IBackOfficeSecurityAccessor backOfficeSecurityAccessor) : ManagementApiControllerBase
+    IBackOfficeSecurityAccessor backOfficeSecurityAccessor,
+    SupertextReporting reporting,
+    IOptionsMonitor<SupertextOptions> options,
+    IOptionsMonitor<WebRoutingSettings> webRouting) : ManagementApiControllerBase
 {
-    public sealed record LanguageModel(string IsoCode, string Name, bool IsDefault, bool Exists);
+    /// <param name="SupertextCode">the Supertext code it is sent as; null when the language isn't mapped (can't be translated)</param>
+    public sealed record LanguageModel(string IsoCode, string Name, bool IsDefault, bool Exists, string? SupertextCode);
 
     public sealed record StatusModel(bool HasApiKey, string Endpoint);
 
@@ -38,7 +46,11 @@ public sealed class SupertextTranslationController(
 
     [HttpGet("status")]
     [ProducesResponseType<StatusModel>(StatusCodes.Status200OK)]
-    public IActionResult Status() => Ok(new StatusModel(clients.HasApiKey, clients.Endpoint));
+    public IActionResult Status()
+    {
+        Report();
+        return Ok(new StatusModel(clients.HasApiKey, clients.Endpoint));
+    }
 
     [HttpGet("languages")]
     [ProducesResponseType<IEnumerable<LanguageModel>>(StatusCodes.Status200OK)]
@@ -47,7 +59,8 @@ public sealed class SupertextTranslationController(
         try
         {
             var languages = await translator.GetLanguagesAsync(documentId);
-            return Ok(languages.Select(l => new LanguageModel(l.IsoCode, l.Name, l.IsDefault, l.Exists)));
+            Report();
+            return Ok(languages.Select(l => new LanguageModel(l.IsoCode, l.Name, l.IsDefault, l.Exists, LanguageMapping.Resolve(l.IsoCode, options.CurrentValue).Code)));
         }
         catch (TranslationException e)
         {
@@ -78,6 +91,17 @@ public sealed class SupertextTranslationController(
         try
         {
             var results = await translator.TranslateAsync(request.DocumentId, request.SourceCulture, request.TargetCultures, request.Overwrite, userId, ct);
+            // Supertext rejected the key: the key check becomes "invalid" (reported once, when it changes).
+            var rejected = results.Select(r => r.Exception?.InnerException).OfType<SupertextException>()
+                .FirstOrDefault(e => e.Code == SupertextErrorCodes.AuthenticationFailure);
+            if (rejected is not null)
+            {
+                reporting.InBackground(ReportAction.AuthenticationFailed, SiteUrl(), rejected.Status ?? 401);
+            }
+            else
+            {
+                Report();
+            }
             return Ok(results.Select(r => new CultureResultModel(r.Culture, r.Status.ToString().ToLowerInvariant(), r.Fields, r.Error, r.Exception?.Code, r.Exception?.Args, r.Exception?.Detail)));
         }
         catch (TranslationException e)
@@ -85,6 +109,12 @@ public sealed class SupertextTranslationController(
             return BadRequest(ProblemFor(e));
         }
     }
+
+    /// <summary>Version report and key check of a back-end request, in the background (Services/SupertextReporting.cs).</summary>
+    private void Report() => reporting.InBackground(ReportAction.OnRequest, SiteUrl());
+
+    private string? SiteUrl() =>
+        SupertextReporting.SiteUrl(webRouting.CurrentValue.UmbracoApplicationUrl, Request.Scheme, Request.Host.Value, Request.PathBase.Value);
 
     /// <summary>English title plus code, arguments and detail, so the backoffice can localize it.</summary>
     private static ProblemDetails ProblemFor(TranslationException e) => new()

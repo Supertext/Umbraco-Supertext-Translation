@@ -44,8 +44,10 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
     this._languages = languages.data;
     const source = this._languages.find((l) => l.isDefault && l.exists) ?? this._languages.find((l) => l.exists);
     this._source = source?.isoCode;
-    // Preselect every language that has no version yet.
-    this._targets = new Set(this._languages.filter((l) => !l.exists && l.isoCode !== this._source).map((l) => l.isoCode));
+    // Preselect every language that has no version yet and has a Supertext language.
+    this._targets = new Set(
+      this._languages.filter((l) => !l.exists && l.supertextCode && l.isoCode !== this._source).map((l) => l.isoCode),
+    );
   }
 
   _toggle(isoCode, checked) {
@@ -181,6 +183,9 @@ export class SupertextTranslateModalElement extends UmbModalBaseElement {
                   ?checked=${this._targets.has(l.isoCode)}
                   @change=${(e) => this._toggle(l.isoCode, e.target.checked)}></uui-checkbox>
                 ${l.exists ? html`<uui-tag look="secondary">${this.localize.term('supertext_hasContent')}</uui-tag>` : nothing}
+                ${l.supertextCode === null
+                  ? html`<uui-tag color="warning" title=${this.localize.term('supertext_notMappedHint', l.isoCode)}>${this.localize.term('supertext_notMapped')}</uui-tag>`
+                  : nothing}
                 ${this._renderResult(l.isoCode)}
               </div>
             `,
