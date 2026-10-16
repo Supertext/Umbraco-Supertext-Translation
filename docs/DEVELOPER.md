@@ -17,7 +17,7 @@ Backoffice: Settings › Supertext (settings-dashboard.js) ── GET  …/super
                                                          ── POST …/supertext/settings/check-key
 Server: SupertextSettingsController (Management API, SectionAccessSettings)
 Public: GET /umbraco/supertext/ping?challenge=  (SupertextPingController, anonymous; Commando Center)
-All back-office endpoints → SupertextReporting (SDK InstallationReporter, in the background) → state in umbracoKeyValue
+All back-office endpoints → SupertextReporting (Plugin Health InstallationReporter, in the background) → state in umbracoKeyValue
 ```
 
 | Part | Role |
@@ -28,7 +28,7 @@ All back-office endpoints → SupertextReporting (SDK InstallationReporter, in t
 | `Services/ContentTranslator` | Copies every culture-variant property from the source culture to each target; registers translatable text as segments with "rebuild" closures; translates them per target language with the SDK's `TranslateTextsAsync` (one document; the SDK splits only above ~900k characters); writes values and the culture name; saves once. Existing target languages are skipped unless `overwrite` (the dialog asks). |
 | `wwwroot/App_Plugins/SupertextTranslation/settings-dashboard.js` | The *Supertext* dashboard in the Settings section (`dashboard` extension, condition `Umb.Section.Settings`): version, endpoint, API key set, latest key check with *Check API key*, the version reports setting and ping URL, and every Umbraco language with its Supertext code (*same code* / *from the mapping* / *Not mapped*) and tone (warning where Supertext has none). Read-only: settings live in appsettings.json / the environment. |
 | `Controllers/SupertextSettingsController` | `GET settings` (dashboard data; also reports `onRequest`), `POST settings/check-key` (`testConnection`). `SectionAccessSettings`. |
-| `Controllers/SupertextPingController` | Plain `ControllerBase`, `[AllowAnonymous]`, `GET /umbraco/supertext/ping`: copies status, headers and body of the SDK's `PingResponse.For(challenge, "Umbraco-Supertext-Translation", enabled)`. |
+| `Controllers/SupertextPingController` | Plain `ControllerBase`, `[AllowAnonymous]`, `GET /umbraco/supertext/ping`: copies status, headers and body of Plugin Health's `PingResponse.For(challenge, "Umbraco-Supertext-Translation", enabled)`. |
 | `Services/SupertextReporting` | The Commando Center glue (see *Version reports and the API key check*). |
 | `Services/LanguageMapping` | Culture → Supertext code with the SDK's `Languages` (see *Language codes*); `Resolve` for the dashboard and the dialog. |
 | `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Umbraco.Translation.Sdk.V1.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext"; `PackageVersion` is the assembly's informational version (the `.csproj` `Version`). |
@@ -53,7 +53,7 @@ All text the backoffice shows comes from the localization files in `wwwroot/App_
 
 ## Supertext SDK
 
-The package talks to Supertext through the official **Supertext SDK for .NET** ([Supertext-API-SDK-and-Guide](https://github.com/Supertext/Supertext-API-SDK-and-Guide/tree/main/sdk/dotnet), MIT). The SDK implements the protocol below, the HTML packing (one `data-st-id` element per field), the language code rules, the 429 retries and stable error codes; it is tested against the shared test vectors of all Supertext SDKs. The package only collects values, maps languages and writes the results back.
+The SDK provides the API client and the API key check (`CheckApiKeyAsync`, `ApiKeyCheck.FingerprintOf`, `SdkInfo.Version`); version reports and the ping answer come from Supertext Plugin Health (next section). The package talks to Supertext through the official **Supertext SDK for .NET** ([Supertext-API-SDK-and-Guide](https://github.com/Supertext/Supertext-API-SDK-and-Guide/tree/main/sdk/dotnet), MIT). The SDK implements the protocol below, the HTML packing (one `data-st-id` element per field), the language code rules, the 429 retries and stable error codes; it is tested against the shared test vectors of all Supertext SDKs. The package only collects values, maps languages and writes the results back.
 
 **Bundled copy:** the SDK's sources live in `lib/supertext-sdk/` (`src/SdkVersion.cs` and `src/V1/*.cs`, `LICENSE`, `COMMIT` with the SDK commit, `VERSION` with the SDK's package version, a short README), with the namespace changed from `Supertext.Sdk` to `Supertext.Umbraco.Translation.Sdk` (the API v1 classes are in `…Sdk.V1`; only `SdkInfo.Version` is outside it), and are compiled into `Supertext.Umbraco.Translation.dll` (`<Compile Include>` in the `.csproj`). Sites install only this package; a site that also references the `Supertext.Sdk` NuGet package can't get a clash or version conflict. This stays so after the SDK is on nuget.org.
 
@@ -85,16 +85,26 @@ Supertext accepts exactly the codes of its `GET features` list (the SDK's `Langu
 
 The stand-in (`Tests/Docs/stand-in.mjs`) accepts only the codes of Supertext's list, like the live API.
 
+## Supertext Plugin Health
+
+Version reports to the Supertext Commando Center, the API key check result and the ping answer come from **Supertext Plugin Health** ([Commando-Center-Supertext-Translation → `plugin-health/`](https://github.com/Supertext/Commando-Center-Supertext-Translation/tree/main/plugin-health), MIT), a dependency-free library; the package passes it the SDK's key check (`KeyChecker.FromDelegates` around `CheckApiKeyAsync` and `ApiKeyCheck.FingerprintOf`, in `SupertextReporting.Reporter`) and `SdkInfo.Version`.
+
+**Bundled copy:** its sources live in `lib/supertext-plugin-health/` (`src/*.cs`, `LICENSE`, `COMMIT`, `VERSION` with the Plugin Health version, a short README), with the namespace changed from `Supertext.PluginHealth` to `Supertext.Umbraco.Translation.PluginHealth`, compiled into `Supertext.Umbraco.Translation.dll` like the SDK copy (`<Compile Include="../../lib/supertext-plugin-health/src/**/*.cs">` in the `.csproj`).
+
+- Update it with `scripts/vendor-plugin-health.sh <tag>` (e.g. `plugin-health-v0.1.0`; default `main`; `PLUGIN_HEALTH_DIR=<clone>` uses a local clone of the Commando Center repository), run the tests, and commit with a CHANGELOG entry.
+- Never edit the copy: fix it in Commando-Center-Supertext-Translation/plugin-health, then re-run the script.
+- Its `ReporterState` JSON is the one the SDK 0.2 reporter stored, so sites that update keep their state and send no new `installed` report.
+
 ## Version reports and the API key check
 
-The package implements the Commando Center's *Report protocol* (Commando-Center-Supertext-Translation → `docs/DEVELOPER.md`) with the SDK's `InstallationReporter`, `PingResponse` and `Reporting.ReportsEnabled`; `Services/SupertextReporting.cs` only supplies what Umbraco knows and stores the state.
+The package implements the Commando Center's *Report protocol* (Commando-Center-Supertext-Translation → `docs/DEVELOPER.md`) with Supertext Plugin Health's `InstallationReporter`, `PingResponse` and `Reporting.ReportsEnabled` and the SDK's `CheckApiKeyAsync` as key check; `Services/SupertextReporting.cs` only supplies what Umbraco knows and stores the state.
 
-- **Reporter options:** plugin `Umbraco-Supertext-Translation` (the GitHub repository name) with `SupertextClientFactory.PackageVersion`; system `Umbraco` with `IUmbracoVersion.SemanticVersion` (without build); runtime and SDK version from the SDK's defaults; site URL = `WebRouting:UmbracoApplicationUrl`, else the request's scheme, host and path base; callback = `<site URL>/umbraco/supertext/ping`; the client options (endpoint, User-Agent, the named `HttpClient`) for the key check. `SUPERTEXT_REPORT_URL` overrides the center's URL (tests, local demo).
+- **Reporter options:** plugin `Umbraco-Supertext-Translation` (the GitHub repository name) with `SupertextClientFactory.PackageVersion`; system `Umbraco` with `IUmbracoVersion.SemanticVersion` (without build); runtime from Plugin Health's default, `sdk_version` = the bundled SDK's `SdkInfo.Version`; site URL = `WebRouting:UmbracoApplicationUrl`, else the request's scheme, host and path base; callback = `<site URL>/umbraco/supertext/ping`; the client options (endpoint, User-Agent, the named `HttpClient`) for the SDK's key check; reports go over the same named `HttpClient`. `SUPERTEXT_REPORT_URL` overrides the center's URL (tests, local demo).
 - **When:** settings live in appsettings.json / the environment, so there is no "settings saved" (and no `afterSettingsSaved`). `OnRequest` runs on every back-office endpoint of the package (`status`, `languages`, `translate`, `settings`): it checks the key only when its fingerprint changed and reports only what changed (`installed`, `upgraded`, `api_key_check`). `AuthenticationFailed` runs when a translation got 401/403 (instead of `OnRequest`). `TestConnection` runs on the dashboard's *Check API key* and returns the check. There is no `check` CLI command.
-- **Never blocking:** back-office requests start the reporter with `InBackground` (`Task.Run` with the execution context suppressed, so no ambient Umbraco scope flows in); only *Check API key* waits for it. Calls are serialized (`SemaphoreSlim`), and `RunAsync` catches everything (the SDK never throws; storage errors are logged at debug level and swallowed).
-- **State:** the SDK's `ReporterState` JSON in Umbraco's key-value table (`IKeyValueService`, key `Supertext.Umbraco.Translation.ReporterState`): last reported version set, key status, last failure, the latest key check (status, time, HTTP status, error code, key fingerprint). Never the key.
+- **Never blocking:** back-office requests start the reporter with `InBackground` (`Task.Run` with the execution context suppressed, so no ambient Umbraco scope flows in); only *Check API key* waits for it. Calls are serialized (`SemaphoreSlim`), and `RunAsync` catches everything (Plugin Health never throws; storage errors are logged at debug level and swallowed).
+- **State:** Plugin Health's `ReporterState` JSON (the same format the SDK 0.2 reporter stored) in Umbraco's key-value table (`IKeyValueService`, key `Supertext.Umbraco.Translation.ReporterState`): last reported version set, key status, last failure, the latest key check (status, time, HTTP status, error code, key fingerprint). Never the key.
 - **Setting:** `Supertext:SendVersionReports` (default `true`); `SUPERTEXT_VERSION_REPORTS` (`0`/`false`/`off`, `1`/`true`/`on`) wins, through `Reporting.ReportsEnabled`. Off: nothing is sent and the ping answers 404; the key check still runs.
-- **Ping:** `SupertextPingController` (anonymous, outside the Management API, `ApiExplorerSettings(IgnoreApi)`), answering exactly the SDK's `PingResponse` (`Cache-Control: no-store`). `/umbraco/` is one of Umbraco's reserved paths, so content routing never takes it.
+- **Ping:** `SupertextPingController` (anonymous, outside the Management API, `ApiExplorerSettings(IgnoreApi)`), answering exactly Plugin Health's `PingResponse` (`Cache-Control: no-store`). `/umbraco/` is one of Umbraco's reserved paths, so content routing never takes it.
 - **Dashboard texts:** the key check messages (`keycheck_<status>`) and the setting's label and help text are the center's, in en/de/fr/it (help text adapted: there is no settings save, reports follow updates and key changes).
 
 ## Local development

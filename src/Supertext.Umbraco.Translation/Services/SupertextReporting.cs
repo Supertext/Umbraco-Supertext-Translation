@@ -2,12 +2,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
+using Supertext.Umbraco.Translation.PluginHealth;
+using Supertext.Umbraco.Translation.Sdk;
 using Supertext.Umbraco.Translation.Sdk.V1;
 using Umbraco.Cms.Core.Services;
 
 namespace Supertext.Umbraco.Translation.Services;
 
-/// <summary>Where the version reporter keeps its state (JSON of the SDK's <see cref="ReporterState"/>).</summary>
+/// <summary>Where the version reporter keeps its state (JSON of Supertext Plugin Health's <see cref="ReporterState"/>, the same as the SDK 0.2 reporter stored).</summary>
 public interface IReporterStateStore
 {
     ReporterState Load();
@@ -42,9 +44,10 @@ public enum ReportAction
 
 /// <summary>
 /// The package's side of the Supertext Commando Center (Commando-Center-Supertext-Translation → docs/DEVELOPER.md →
-/// Report protocol): version reports, the automatic API key check and the callback ping. The protocol is the SDK's
-/// (<see cref="InstallationReporter"/>, <see cref="PingResponse"/>); this class gives it what Umbraco knows (site URL,
-/// versions) and keeps its state.
+/// Report protocol): version reports, the automatic API key check and the callback ping. The protocol is Supertext Plugin
+/// Health's (<see cref="InstallationReporter"/>, <see cref="PingResponse"/>, bundled in lib/supertext-plugin-health) with
+/// the SDK's <see cref="SupertextClient.CheckApiKeyAsync"/> as key check; this class gives it what Umbraco knows (site
+/// URL, versions) and keeps its state.
 ///
 /// Settings live in appsettings.json / the environment, so there is no "settings saved": the key check runs on
 /// back-end requests when the key changed (fingerprint), on "Check API key" and after a 401/403 from Supertext.
@@ -65,7 +68,7 @@ public sealed class SupertextReporting(
 
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    /// <summary>For tests: where reports go (default: SUPERTEXT_REPORT_URL, else the SDK's default).</summary>
+    /// <summary>For tests: where reports go (default: SUPERTEXT_REPORT_URL, else Plugin Health's default).</summary>
     internal string? ReportUrl { get; init; }
 
     /// <summary>For tests: the HttpClient for reports.</summary>
@@ -80,7 +83,7 @@ public sealed class SupertextReporting(
     /// <summary>Whether <c>SUPERTEXT_VERSION_REPORTS</c> decides (for the dashboard).</summary>
     public static bool SetByEnvironment => DecidedBy(Environment.GetEnvironmentVariable("SUPERTEXT_VERSION_REPORTS"));
 
-    /// <summary>Whether an environment value decides on its own (a value the SDK understands), whatever the setting.</summary>
+    /// <summary>Whether an environment value decides on its own (a value Plugin Health understands), whatever the setting.</summary>
     internal static bool DecidedBy(string? env) => Reporting.ReportsEnabled(true, env) == Reporting.ReportsEnabled(false, env);
 
     public InstallationInfo Installation => installation;
@@ -109,18 +112,29 @@ public sealed class SupertextReporting(
     /// <summary>The absolute URL of the ping route for a site URL.</summary>
     public static string PingUrl(string siteUrl) => siteUrl.TrimEnd('/') + "/" + PingPath;
 
-    public InstallationReporter Reporter(string siteUrl) => new(new ReporterOptions
+    public InstallationReporter Reporter(string siteUrl)
     {
-        Enabled = Enabled,
-        SiteUrl = siteUrl,
-        Plugin = new NameVersion(PluginName, installation.PackageVersion),
-        System = new NameVersion("Umbraco", installation.UmbracoVersion),
-        CallbackUrl = PingUrl(siteUrl),
-        ClientOptions = clients.ClientOptions(),
-        ReportUrl = ReportUrl,
-        HttpClient = ReportHttpClient,
-        TimeProvider = Clock,
-    });
+        var clientOptions = clients.ClientOptions(Clock);
+        return new(new ReporterOptions
+        {
+            Enabled = Enabled,
+            SiteUrl = siteUrl,
+            Plugin = new NameVersion(PluginName, installation.PackageVersion),
+            System = new NameVersion("Umbraco", installation.UmbracoVersion),
+            SdkVersion = SdkInfo.Version,
+            CallbackUrl = PingUrl(siteUrl),
+            KeyChecker = KeyChecker.FromDelegates(
+                async (key, ct) =>
+                {
+                    var c = await new SupertextClient(key, clientOptions).CheckApiKeyAsync(ct).ConfigureAwait(false);
+                    return new KeyCheck(c.Status, c.CheckedAt, c.HttpStatus, c.ErrorCode, c.Fingerprint);
+                },
+                ApiKeyCheck.FingerprintOf),
+            ReportUrl = ReportUrl,
+            HttpClient = ReportHttpClient ?? clientOptions.HttpClient,
+            TimeProvider = Clock,
+        });
+    }
 
     /// <summary>Runs one reporter action with the stored state and stores the result. One at a time; never throws.</summary>
     public async Task<ReporterResult?> RunAsync(ReportAction action, string? siteUrl, int httpStatus = 401)
@@ -174,7 +188,7 @@ public sealed class SupertextReporting(
     }
 
     /// <summary>The latest stored key check (for the dashboard), or null.</summary>
-    public ApiKeyCheck? LastCheck()
+    public KeyCheck? LastCheck()
     {
         try
         {

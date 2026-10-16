@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
+using Supertext.Umbraco.Translation.PluginHealth;
 using Supertext.Umbraco.Translation.Sdk.V1;
 using Supertext.Umbraco.Translation.Services;
 using Umbraco.Cms.Api.Management.Controllers;
@@ -94,14 +95,18 @@ public sealed partial class SupertextSettingsController(
     public async Task<IActionResult> CheckKey(CancellationToken ct)
     {
         var result = await reporting.RunAsync(ReportAction.TestConnection, SiteUrl());
-        var check = result?.Check ?? await clients.Create().CheckApiKeyAsync(ct);
-        return Ok(ToModel(check));
+        if (result?.Check is { } check)
+        {
+            return Ok(ToModel(check));
+        }
+        var sdkCheck = await clients.Create().CheckApiKeyAsync(ct);
+        return Ok(new KeyCheckModel(sdkCheck.Status, sdkCheck.CheckedAt, sdkCheck.HttpStatus, sdkCheck.ErrorCode));
     }
 
     private ReportsModel Reports(string? siteUrl) =>
         new(reporting.Enabled, SupertextReporting.SetByEnvironment, reporting.Enabled && siteUrl is not null ? SupertextReporting.PingUrl(siteUrl) : null);
 
-    private static KeyCheckModel? ToModel(ApiKeyCheck? check) =>
+    private static KeyCheckModel? ToModel(KeyCheck? check) =>
         check is null ? null : new KeyCheckModel(check.Status, check.CheckedAt, check.HttpStatus, check.ErrorCode);
 
     private string? SiteUrl() =>

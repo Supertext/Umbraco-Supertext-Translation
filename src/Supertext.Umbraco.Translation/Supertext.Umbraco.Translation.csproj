@@ -22,6 +22,8 @@
   <ItemGroup>
     <!-- The Supertext SDK, bundled (namespace Supertext.Umbraco.Translation.Sdk): see lib/supertext-sdk/README.md -->
     <Compile Include="../../lib/supertext-sdk/src/**/*.cs" Link="Sdk/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Supertext Plugin Health, bundled (namespace Supertext.Umbraco.Translation.PluginHealth): see lib/supertext-plugin-health/README.md -->
+    <Compile Include="../../lib/supertext-plugin-health/src/**/*.cs" Link="PluginHealth/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Supertext.Umbraco.Translation.Tests" />

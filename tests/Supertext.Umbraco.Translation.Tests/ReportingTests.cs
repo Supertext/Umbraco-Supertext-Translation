@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging.Abstractions;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
+using Supertext.Umbraco.Translation.PluginHealth;
+using Supertext.Umbraco.Translation.Sdk;
 using Supertext.Umbraco.Translation.Sdk.V1;
 using Supertext.Umbraco.Translation.Services;
 using Xunit;
@@ -56,9 +58,10 @@ public class ReportingTests
         Assert.Equal(Site + "/umbraco/supertext/ping", report["callback"]!["url"]!.GetValue<string>());
         Assert.Equal("ok", report["api_key_check"]!["status"]!.GetValue<string>());
         Assert.True(report["api_key_configured"]!.GetValue<bool>());
+        Assert.Equal(SdkInfo.Version, report["sdk_version"]!.GetValue<string>());
         Assert.DoesNotContain("test-key", report.ToJsonString());
         Assert.DoesNotContain("test-key", store.Json);
-        Assert.Equal(ApiKeyCheckStatus.Ok, reporting.LastCheck()?.Status);
+        Assert.Equal(KeyCheckStatus.Ok, reporting.LastCheck()?.Status);
     }
 
     [Fact]
@@ -82,7 +85,7 @@ public class ReportingTests
         await reporting.RunAsync(ReportAction.AuthenticationFailed, Site, 403);
 
         Assert.Equal(ReportEvents.ApiKeyCheck, result?.Event);
-        Assert.Equal(ApiKeyCheckStatus.Invalid, reporting.LastCheck()?.Status);
+        Assert.Equal(KeyCheckStatus.Invalid, reporting.LastCheck()?.Status);
         Assert.Equal(403, reporting.LastCheck()?.HttpStatus);
         Assert.Equal(2, http.Reports.Count); // installed + one api_key_check
         Assert.Equal("invalid", http.Reports[1]["api_key_check"]!["status"]!.GetValue<string>());
@@ -94,9 +97,9 @@ public class ReportingTests
         var (reporting, http, _) = Create(apiKey: "bad-key");
         var result = await reporting.RunAsync(ReportAction.TestConnection, Site);
 
-        Assert.Equal(ApiKeyCheckStatus.Invalid, result?.Check?.Status);
+        Assert.Equal(KeyCheckStatus.Invalid, result?.Check?.Status);
         Assert.Equal(1, http.KeyChecks);
-        Assert.Equal(ApiKeyCheckStatus.Invalid, reporting.LastCheck()?.Status);
+        Assert.Equal(KeyCheckStatus.Invalid, reporting.LastCheck()?.Status);
     }
 
     [Fact]
@@ -105,7 +108,7 @@ public class ReportingTests
         var (reporting, http, _) = Create(apiKey: "");
         var result = await reporting.RunAsync(ReportAction.TestConnection, Site);
 
-        Assert.Equal(ApiKeyCheckStatus.Missing, result?.Check?.Status);
+        Assert.Equal(KeyCheckStatus.Missing, result?.Check?.Status);
         Assert.Equal(0, http.KeyChecks);
     }
 
@@ -121,7 +124,7 @@ public class ReportingTests
         await reporting.RunAsync(ReportAction.OnRequest, Site);
 
         Assert.Empty(http.Reports);
-        Assert.Equal(ApiKeyCheckStatus.Ok, ReporterState.FromJson(store.Json).KeyCheck?.Status);
+        Assert.Equal(KeyCheckStatus.Ok, ReporterState.FromJson(store.Json).KeyCheck?.Status);
     }
 
     [Fact]
@@ -178,6 +181,21 @@ public class ReportingTests
     [InlineData("maybe", false)]
     public void EnvironmentDecidesOnlyWithAKnownValue(string? env, bool decides) =>
         Assert.Equal(decides, SupertextReporting.DecidedBy(env));
+
+    [Fact]
+    public async Task StateStoredByTheSdk02ReporterIsKeptWithoutANewInstalledReport()
+    {
+        // What the SDK 0.2 reporter stored in umbracoKeyValue before the switch to Plugin Health.
+        var stored = "{\"reportedVersions\":\"1.2.3|17.7.1|" + Environment.Version + "\",\"reportedKeyStatus\":\"ok\",\"lastFailureAt\":null,"
+            + "\"keyCheck\":{\"status\":\"ok\",\"checkedAt\":\"2026-10-14T09:00:00Z\",\"httpStatus\":200,\"errorCode\":null,\"fingerprint\":\"" + ApiKeyCheck.FingerprintOf("test-key") + "\"}}";
+        var (reporting, http, store) = Create(store: new MemoryStateStore { Json = stored });
+        Assert.Equal(stored, store.Load().ToJson());
+
+        var result = await reporting.RunAsync(ReportAction.OnRequest, Site);
+        Assert.Null(result?.Event);
+        Assert.Empty(http.Reports);
+        Assert.Equal(0, http.KeyChecks);
+    }
 
     [Fact]
     public void StateIsStoredAsTheSdksJson()

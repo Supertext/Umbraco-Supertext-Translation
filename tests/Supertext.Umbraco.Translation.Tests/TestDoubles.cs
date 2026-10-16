@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Supertext.Umbraco.Translation.Api;
 using Supertext.Umbraco.Translation.Configuration;
+using Supertext.Umbraco.Translation.PluginHealth;
 using Supertext.Umbraco.Translation.Sdk.V1;
 using Supertext.Umbraco.Translation.Services;
 using Xunit;

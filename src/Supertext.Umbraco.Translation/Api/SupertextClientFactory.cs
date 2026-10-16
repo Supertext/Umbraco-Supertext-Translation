@@ -27,7 +27,8 @@ public sealed class SupertextClientFactory(IHttpClientFactory httpClientFactory,
     public string Endpoint => options.CurrentValue.EffectiveEndpoint;
 
     /// <summary>Client options for the SDK (also used by the version reporter's API key check).</summary>
-    public SupertextClientOptions ClientOptions()
+    /// <param name="clock">For tests: the clock (default: the system clock).</param>
+    public SupertextClientOptions ClientOptions(TimeProvider? clock = null)
     {
         var o = options.CurrentValue;
         return new SupertextClientOptions
@@ -37,6 +38,7 @@ public sealed class SupertextClientFactory(IHttpClientFactory httpClientFactory,
             Timeout = TimeSpan.FromSeconds(Math.Max(10, o.PollTimeoutSeconds)),
             UserAgent = UserAgent,
             HttpClient = httpClientFactory.CreateClient(HttpClientName),
+            TimeProvider = clock,
         };
     }
 
