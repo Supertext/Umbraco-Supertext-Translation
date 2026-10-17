@@ -156,10 +156,15 @@ async function translate(id, label, overwrite) {
 	const name = nameOf(sourceDocs.get(id), sourceLang.isoCode);
 	const tag = `${label}: "${name}"`;
 	await page.goto(`${B}/umbraco/section/content/workspace/document/edit/${id}`);
-	await page.getByRole('button', { name: 'Translate with Supertext' }).first().click({ timeout: 60_000 });
+	// Let the workspace finish loading (list views, e.g. "Blog", render late), else it re-renders under the dialog.
+	await page.getByRole('button', { name: 'Translate with Supertext' }).first().waitFor({ timeout: 60_000 });
+	await page.waitForLoadState('networkidle').catch(() => {});
+	await page.waitForTimeout(1000);
+	await page.getByRole('button', { name: 'Translate with Supertext' }).first().click();
 	await page.getByText('Translate from').waitFor();
 	const dialog = page.locator('supertext-translate-modal');
 	await dialog.locator('uui-checkbox').first().waitFor();
+	await page.waitForTimeout(1000); // the sidebar slides in
 	for (const t of targets) {
 		const box = dialog.locator('uui-checkbox').filter({ hasText: t.name }).first();
 		if (!(await box.evaluate((el) => el.checked))) {
@@ -193,7 +198,18 @@ async function translate(id, label, overwrite) {
 	check(`${tag}: no error shown in the backoffice`, failedToast === 0 && after.length === 0, after.join(' | '));
 }
 
-for (const id of docIds) await translate(id, 'first-run', false);
+/** A step that throws (e.g. a dialog that never opens) fails its check and the test goes on. */
+async function attempt(id, label, overwrite) {
+	try {
+		await translate(id, label, overwrite);
+	} catch (e) {
+		check(`${label}: "${nameOf(sourceDocs.get(id), sourceLang.isoCode)}" translated through the dialog`, false, e.message.split('\n')[0]);
+		await page.screenshot({ path: `${artifacts}${label}-${id}-error.png`, fullPage: true }).catch(() => {});
+		await page.keyboard.press('Escape').catch(() => {});
+	}
+}
+
+for (const id of docIds) await attempt(id, 'first-run', false);
 
 // --- Checks through the Management API --------------------------------------------------------
 const first = new Map();
@@ -256,7 +272,7 @@ for (const t of targets) {
 
 // --- Translating again updates in place --------------------------------------------------------
 const again = docIds.slice(0, Number(process.env.E2E_RETRANSLATE ?? 2));
-for (const id of again) await translate(id, 'second-run', true);
+for (const id of again) await attempt(id, 'second-run', true);
 const docIdsAfter = await documents();
 check('translating again creates no new documents', docIdsAfter.length === totalBefore, `${totalBefore} → ${docIdsAfter.length}`);
 for (const id of again) {
