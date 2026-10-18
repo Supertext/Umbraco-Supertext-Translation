@@ -13,6 +13,8 @@ Works with Umbraco 17 LTS (tested) and 18, .NET 10.
 3. Each target language goes to Supertext as **one HTML document**, so a page with many blocks is a single round trip per language.
 4. The translations are written to the target languages and saved as drafts, with the editor's permissions. Non-text fields are copied, so each language version is complete. Umbraco derives the language URL from the translated page name.
 
+**Export for translation / Import translation:** the same dialog downloads a page's texts as an XLIFF 1.2 or HTML file for a translator, a translation tool or Supertext's web app, and imports the translated file as drafts.
+
 Languages that already have content are only replaced after a confirmation. If Supertext fails for a language, nothing changes for it, and the editor sees why.
 
 Administrators find the configuration, the automatic API key check and the Supertext language of each Umbraco language under **Settings › Supertext**. Cultures that aren't Supertext codes (e.g. `de` instead of `de-CH`) are mapped in appsettings.json; nothing is guessed. The package sends version information to Supertext (no content, no API key; can be turned off): see the installation guide.

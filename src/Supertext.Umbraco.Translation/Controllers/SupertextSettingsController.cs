@@ -49,7 +49,8 @@ public sealed partial class SupertextSettingsController(
     /// <param name="Politeness">more, less or default</param>
     /// <param name="PolitenessSupported">false: Supertext offers no formal/informal for the code</param>
     /// <param name="Enabled">false: hidden in the dialog</param>
-    public sealed record LanguageModel(string IsoCode, string Name, bool IsDefault, string? SupertextCode, bool Mapped, string Politeness, bool? PolitenessSupported, bool Enabled);
+    /// <param name="FromDefault">the code is Supertext's default for the culture (de → de-DE)</param>
+    public sealed record LanguageModel(string IsoCode, string Name, bool IsDefault, string? SupertextCode, bool Mapped, string Politeness, bool? PolitenessSupported, bool Enabled, bool FromDefault);
 
     /// <param name="ReleaseUrl">GitHub release of this version (X.Y.Z versions only)</param>
     public sealed record SettingsModel(
@@ -74,7 +75,7 @@ public sealed partial class SupertextSettingsController(
         {
             var r = LanguageMapping.Resolve(l.IsoCode, o);
             var enabled = !o.Languages.TryGetValue(l.IsoCode, out var entry) || entry.Enabled;
-            return new LanguageModel(l.IsoCode, l.CultureName, l.IsDefault, r.Code, r.Mapped, r.Politeness, r.PolitenessSupported, enabled);
+            return new LanguageModel(l.IsoCode, l.CultureName, l.IsDefault, r.Code, r.Mapped, r.Politeness, r.PolitenessSupported, enabled, r.FromDefault);
         }).ToList();
         var version = reporting.Installation.PackageVersion;
         return Ok(new SettingsModel(

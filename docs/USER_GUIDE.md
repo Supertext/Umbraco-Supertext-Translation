@@ -45,6 +45,38 @@ If a language already has content, the dialog marks it **has content**. Translat
 
 Your published version stays online until you publish the new draft.
 
+## Export for translation and import a translated file
+
+Instead of translating with Supertext's AI right away, you can download the page's texts as a file, have it translated elsewhere (by a translator, in a translation tool such as Trados, memoQ or Phrase, or in Supertext's web app) and import the translated file again. Both are at the bottom of the **Translate with Supertext** dialog.
+
+**Export:**
+
+1. Open the dialog, choose the language to translate **from** and tick the languages to translate **into**, as for translating.
+2. Under **Export for translation**, choose the **File format**:
+   - **XLIFF 1.2 (for translation tools)**: the standard format of translation tools. Formatting appears as protected tags, so translators can't break it. One file can hold several languages. This is the better choice for translation tools and agencies.
+   - **HTML (one language per file)**: a web page with the texts, for Supertext's web app or anyone who translates HTML. Tick exactly one target language. Translators must leave the page's head (the `supertext:` lines) and the `data-st-id` attributes alone.
+3. Click **Download file** (for example `umbraco-<document key>-de-CH.xlf`) and send it to your translator, or upload it to Supertext's web app. The page is exported as saved.
+
+**Import:**
+
+1. Open the dialog on any page (the file says which page and language it belongs to).
+2. Under **Import translation**, choose the translated file. If the language already has content, tick **Replace languages that already have content** (as when translating again).
+3. Click **Import translation**. The texts are saved as a **draft** of that language, with the same rules as a translation with Supertext. Review and publish it.
+
+The summary shows, per page and language:
+
+| Line | Meaning |
+| --- | --- |
+| *Imported: 12* | Texts written into the draft. |
+| *Skipped, source changed since the export: 1* | The source text was edited after the export, so the translation may be outdated. Tick **Also import texts whose source changed since the export** to import them anyway. |
+| *Not translated in the file: 1* | The file has no translation for these texts (an empty target in XLIFF). |
+| *Formatting changed, not imported: 1* | The translation broke or added formatting (tags, links). Fix it in the file and import again. |
+| *Not in the file: 1* | Texts added to the page after the export. |
+
+Texts that aren't imported keep the text of the source language in the draft. An HTML file imported unchanged writes the source text back: HTML can't mark a text as untranslated, so import only files that were translated.
+
+Errors with the whole file: *This file isn't a valid XLIFF or HTML translation file*; *This file wasn't exported by the Supertext package, or its header was removed* (the `supertext:` head lines or the XLIFF header are missing); *The file is too large (at most 10 MB)*; *This file belongs to another system (…)* (exported by another Supertext plugin); *The document this file was exported from no longer exists*; *The site has no language …*.
+
 ## What gets translated
 
 - The page name. Umbraco derives the URL of the language version from it, e.g. *Funktionen* → `/de/funktionen/`.

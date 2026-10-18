@@ -78,7 +78,8 @@ Turning on *Vary by culture* for a document type that already has content moves 
    | All others, without region | `bg`, `cs`, `da`, `el`, `es`, `fi`, `hr`, `hu`, `ja`, `ko`, `nb`, `nl`, `pl`, `rm`, `ru`, `sk`, `sl`, `sq`, `sv`, `tr` |
 
    - An Umbraco culture that **is** one of these codes (apart from upper/lower case and `_`/`-`) is used as it is: `de-CH`, `fr-CH`, `es`, `nl`. Nothing to configure.
-   - **Every other culture needs a mapping**, `Supertext:Languages:<culture>:Code`, e.g. `de` → `de-CH`, `es-ES` → `es`, `zh-CN` → `zh-Hans`. The package never guesses a region: an unmapped language is shown as *not mapped* in the dialog and on **Settings › Supertext**, and translating into it says *has no Supertext language yet*; nothing is sent for it.
+   - **Where Supertext's default is obvious, it is used** (Supertext SDK defaults): `de` → `de-DE`, `en` → `en-US`, `fr` → `fr-FR`, `it` → `it-IT`, `pt` → `pt-PT`, `zh-CN` → `zh-Hans`, `zh-TW` → `zh-Hant`, a region of a language without regions → the language (`es-ES` → `es`). Map the culture if you want another code, e.g. `de` → `de-CH` for Swiss spelling.
+   - **Every other culture needs a mapping**, `Supertext:Languages:<culture>:Code`, e.g. `en-IE` → `en-GB`, `gsw` → `gsw-u-sd-chzh`. An unmapped language without a default is shown as *not mapped* in the dialog and on **Settings › Supertext**, and translating into it says *has no Supertext language yet*; nothing is sent for it.
    - The same mapping is used when the language is the **source**: Supertext gets its language without region (`de-CH` → `de`, `en-US` → `en`).
 
 ```json
@@ -94,7 +95,7 @@ Turning on *Vary by culture* for a document type that already has content moves 
 
 `Politeness`: `more` = formal (Sie/vous/Lei), `less` = informal (du/tu), `default` = Supertext decides. Supertext offers no formal/informal choice for English, Swiss German, Romansh, Albanian and Serbian: leave those on `default` (the dashboard warns, and Supertext would answer *offers no formal or informal tone for this language*). `Enabled: false` hides a language from the dialog.
 
-**Settings › Supertext** lists every Umbraco language with the Supertext code it is sent as (*same code* or *from the mapping*), *Not mapped* for languages that still need an entry, and the tone.
+**Settings › Supertext** lists every Umbraco language with the Supertext code it is sent as (*same code*, *from the mapping* or *Supertext default*), *Not mapped* for languages that still need an entry, and the tone.
 
 ## Interface languages
 
@@ -103,6 +104,8 @@ The package's own screens (the **Translate with Supertext** button and menu entr
 ## 4. Permissions
 
 Editors need the **Update** permission on the page and access to the target languages (user group *Languages*, or *Allow access to all languages*). The default *Editors* group has both.
+
+The same applies to **Export for translation** and **Import translation** in the dialog (XLIFF 1.2 or HTML files, see the user guide): exporting needs *Update* in the chosen target languages, importing needs it on the page and language each file belongs to. They need nothing to configure and no API key (they don't call Supertext). Files are limited to 10 MB (the dialog refuses larger files before reading them, the server checks again) and are read in memory, never stored. A reverse proxy in front of the site must allow request bodies of up to 30 MB for imports (the file travels JSON-encoded).
 
 ## 5. Check it works
 
@@ -145,7 +148,7 @@ All under `Supertext` in appsettings.json (or environment variables like `Supert
 | `Endpoint` | `https://api.supertext.com/v1/` | API base URL; `SUPERTEXT_API_ENDPOINT` wins |
 | `PollIntervalSeconds` | `2` | Seconds between status checks |
 | `PollTimeoutSeconds` | `240` | Maximum seconds to wait for one language |
-| `Languages.<culture>.Code` | the culture, if it is a Supertext code | Language mapping: the Supertext code for this culture (e.g. `de` → `de-CH`, `es-ES` → `es`; see [Languages](#3-languages)). Needed for every culture that isn't itself a Supertext code; no default regions |
+| `Languages.<culture>.Code` | the culture, if it is a Supertext code | Language mapping: the Supertext code for this culture (e.g. `de` → `de-CH`, `es-ES` → `es`; see [Languages](#3-languages)). Needed for cultures that aren't Supertext codes and have no obvious default (`en-IE`, `gsw`); also overrides a default (`de` → `de-CH`) |
 | `Languages.<culture>.Politeness` | `default` | `more`, `less` or `default` |
 | `Languages.<culture>.Enabled` | `true` | `false` hides the language from the dialog |
 | `SendVersionReports` | `true` | *Send version information to Supertext* (see [Version information sent to Supertext](#version-information-sent-to-supertext)); `SUPERTEXT_VERSION_REPORTS=0`/`1` wins |

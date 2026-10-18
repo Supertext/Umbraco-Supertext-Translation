@@ -34,7 +34,8 @@ public sealed class SupertextOptions
     /// <summary>
     /// Per-language settings keyed by Umbraco culture (ISO code, e.g. "de-CH"). <c>Code</c> is the
     /// language mapping: without it, a culture that is itself a Supertext code (de-CH, es, apart from
-    /// case and _/-) is used as it is, and any other culture can't be translated (no guessing).
+    /// case and _/-) is used as it is, else the SDK's default target where one is obvious (de → de-DE, es-ES → es),
+    /// and any other culture can't be translated.
     /// </summary>
     public Dictionary<string, SupertextLanguageOptions> Languages { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 

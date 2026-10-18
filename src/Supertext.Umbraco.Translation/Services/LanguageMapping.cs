@@ -8,13 +8,15 @@ namespace Supertext.Umbraco.Translation.Services;
 /// <param name="Mapped">True when the code comes from <c>Supertext:Languages:&lt;culture&gt;:Code</c>, false for an exact match.</param>
 /// <param name="Politeness">"more", "less" or "default", as configured.</param>
 /// <param name="PolitenessSupported">Whether Supertext offers formal/informal for the code (null: a code the SDK doesn't list).</param>
-public sealed record LanguageResolution(string? Code, bool Mapped, string Politeness, bool? PolitenessSupported);
+/// <param name="FromDefault">True when the code is the SDK's default target for the culture (de → de-DE), not a mapping or an exact match.</param>
+public sealed record LanguageResolution(string? Code, bool Mapped, string Politeness, bool? PolitenessSupported, bool FromDefault = false);
 
 /// <summary>
-/// Umbraco cultures → Supertext codes, with the Supertext SDK's rules (the same in every Supertext plugin,
-/// no guessing): the mapping <c>Supertext:Languages:&lt;culture&gt;:Code</c> wins; else a culture that is a
-/// Supertext code apart from case and <c>_</c>/<c>-</c> (de-CH, es); else the SDK throws
-/// <c>unsupported_language</c> and nothing is sent. One mapping serves both directions: as source, a mapped
+/// Umbraco cultures → Supertext codes, with the Supertext SDK's rules (the same in every Supertext plugin):
+/// the mapping <c>Supertext:Languages:&lt;culture&gt;:Code</c> wins; else a culture that is a Supertext code
+/// apart from case and <c>_</c>/<c>-</c> (de-CH, es); else the SDK's default target where one is obvious
+/// (de → de-DE, es-ES → es, zh-CN → zh-Hans; SDK 0.4.0); else the SDK throws <c>unsupported_language</c>
+/// (en-IE, de-LI, gsw) and nothing is sent. One mapping serves both directions: as source, a mapped
 /// code is sent in its source form (de-CH → de).
 /// </summary>
 public static class LanguageMapping
@@ -45,8 +47,9 @@ public static class LanguageMapping
         {
             code = null;
         }
-        var mapped = mapping.Keys.Any(k => Same(k, culture));
-        return new LanguageResolution(code, code is not null && mapped, PolitenessSetting(culture, options), code is null ? null : Languages.SupportsPoliteness(code));
+        var mapped = code is not null && mapping.Keys.Any(k => Same(k, culture));
+        var fromDefault = code is not null && !mapped && Languages.MatchTarget(culture) is null;
+        return new LanguageResolution(code, mapped, PolitenessSetting(culture, options), code is null ? null : Languages.SupportsPoliteness(code), fromDefault);
     }
 
     private static string PolitenessSetting(string culture, SupertextOptions options)

@@ -9,10 +9,13 @@ Backoffice: "Translate with Supertext" (workspace action + entity action)
    └─ dialog (translate-modal.js) ── GET  /umbraco/management/api/v1/supertext/status
                                   ── GET  …/supertext/languages?documentId=
                                   ── POST …/supertext/translate {documentId, sourceCulture, targetCultures[], overwrite}
+                                  ── POST …/supertext/export {documentId, sourceCulture, targetCultures[], format} → file (blob)
+                                  ── POST …/supertext/import {content, includeChanged, overwrite} → summary per job
 Server: SupertextTranslationController (Management API, SectionAccessContent + Update permission per culture)
    └─ ContentTranslator ── per target culture: LanguageMapping (culture → Supertext code) → collect segments
                         │   → bundled Supertext SDK TranslateTextsAsync (one HTML document)
                         └─ SetCultureName / SetValue(culture) → IContentService.Save (draft)
+                        export/import: CollectCulture (same keys) → TranslationFileExchange (SDK TranslationFiles) → ApplyCulture → Save
 Backoffice: Settings › Supertext (settings-dashboard.js) ── GET  …/supertext/settings
                                                          ── POST …/supertext/settings/check-key
 Server: SupertextSettingsController (Management API, SectionAccessSettings)
@@ -30,11 +33,15 @@ All back-office endpoints → SupertextReporting (Plugin Health InstallationRepo
 | `Controllers/SupertextSettingsController` | `GET settings` (dashboard data; also reports `onRequest`), `POST settings/check-key` (`testConnection`). `SectionAccessSettings`. |
 | `Controllers/SupertextPingController` | Plain `ControllerBase`, `[AllowAnonymous]`, `GET /umbraco/supertext/ping`: copies status, headers and body of Plugin Health's `PingResponse.For(challenge, "Umbraco-Supertext-Translation", enabled)`. |
 | `Services/SupertextReporting` | The Commando Center glue (see *Version reports and the API key check*). |
+| `Services/TranslationSegments` | The texts of one document culture under stable path keys (`name`, `<alias>`, `<alias>/markup`, `<alias>/<block key>/<alias>`) and their results, from the API or a file. No Umbraco dependency. |
+| `Services/TranslationFileExchange` | *Export for translation* / *Import translation* without Umbraco (unit-tested): reference format, `FileJob`s, file names, upload size check, `plugin`/`reference` check, applying `ok` (and optionally `source_changed`) results. See *Translation files*. |
 | `Services/LanguageMapping` | Culture → Supertext code with the SDK's `Languages` (see *Language codes*); `Resolve` for the dashboard and the dialog. |
 | `Api/SupertextClientFactory` | Creates the SDK's `Supertext.Umbraco.Translation.Sdk.V1.SupertextClient` from the current options (key, endpoint, poll interval and timeout, User-Agent `Umbraco-Supertext-Translation/<version>`) on the named `HttpClient` "Supertext"; `PackageVersion` is the assembly's informational version (the `.csproj` `Version`). |
 | `Api/TranslationException` | Errors for the backoffice: `Code` is the suffix of `supertext_error_…` in `lang/*.js`. `From()` maps the SDK's error codes (`SupertextErrorCodes`) to these codes. |
 | `Configuration/SupertextOptions` | `Supertext` section; `SUPERTEXT_API_KEY` / `SUPERTEXT_API_ENDPOINT` win; `SendVersionReports` (`SUPERTEXT_VERSION_REPORTS` wins, via the SDK); `LanguageMapping` = the non-blank `Languages.<culture>.Code` values. |
 | `Composing/SupertextComposer` | Options, named `HttpClient`, client factory, scoped translator, reporter state store, `InstallationInfo` (package and Umbraco version), `SupertextReporting` (singletons). |
+
+**Segment keys** are paths in the document (`name`, the property alias, `…/markup` for rich text, `…/<block key>/<alias>` inside blocks, `#2` appended to a duplicate), so they stay stable when blocks are added or reordered: the API translation uses them to match results, translation files as their unit ids.
 
 **Value formats** the translator understands:
 
@@ -71,13 +78,22 @@ AI file translation API v1, shared with all Supertext plugins:
 
 Header `Authorization: Supertext-Auth-Key <key>` (the SDK strips a pasted prefix). HTTP 429 is retried up to 4 times (`Retry-After`, else 1/2/4/8 s with jitter). Target languages are translated one after the other to stay under the per-second limit.
 
+## Translation files (XLIFF and HTML)
+
+*Export for translation* and *Import translation* (bottom of the dialog) use the SDK's `TranslationFiles` (SDK 0.5.0, namespace `Supertext.Umbraco.Translation.Sdk.Files`; integration guide → *Translation files: XLIFF and HTML*, vectors `spec/translation-file.json`). Nothing here calls the API, so no API key is needed.
+
+- **Segments:** exactly what the API translation sends: `ContentTranslator.CollectCulture` for the source culture, keyed by path (`TranslationSegments`). Import collects the document again and writes through the same rebuild closures (`ApplyCulture`), then saves once, like a translation; texts without a result keep the source.
+- **Job:** `plugin` = `Umbraco-Supertext-Translation`; `reference` = `document:<document key>:<source culture>:<target culture>` (e.g. `document:5f2c3a8e-1d2b-4c3d-9e8f-0a1b2c3d4e5f:en-US:de-CH`; the source culture too, so an import collects the same texts again); `sourceLanguage`/`targetLanguage` = the codes `LanguageMapping` resolves, or the culture with `_` → `-` when it has none (unmapped languages don't block an export).
+- **Export** (`POST …/supertext/export`): XLIFF with one `<file>` per target culture (`umbraco-<key>-<culture>.xlf`, or `umbraco-<key>.xlf` for several), `application/x-xliff+xml`; HTML for exactly one culture (`umbraco-<key>-<culture>.html`, `text/html; charset=utf-8`); both as attachments. The dialog fetches it with `umbHttpClient` (`parseAs: 'blob'`, bearer auth) and saves it through an object URL with the server's file name. Permission: *Update* on the document in the target cultures. Nothing to translate → `nothingToTranslate`.
+- **Import** (`POST …/supertext/import`): the dialog refuses files over 10 MB before reading them and sends the file's text as JSON (`umbHttpClient` has no multipart helper); the server refuses more than 10 MB (UTF-8) again (`[RequestSizeLimit]` 30 MB for the JSON) and parses in memory. Per job: `plugin` must be ours (`otherSystem`), the reference must parse and the document exist (`fileDocumentNotFound`), the target culture must be an Umbraco language other than the source (`noLanguage`), the user needs *Update* on the document in it (`notAllowed`), an existing culture needs `overwrite` (`exists`). `ok` results are written, `source_changed` only with `includeChanged`; `untranslated`, `invalid_markup`, `missing` are not. Nothing is saved when nothing was imported (`nothing`). SDK errors (`invalid_file`, `missing_metadata`, `too_large`) become `invalidFile`, `missingMetadata`, `fileTooLarge`.
+
 ## Language codes
 
 Supertext accepts exactly the codes of its `GET features` list (the SDK's `Languages.Targets` / `Languages.Sources`, from the live API): bare sources (`en`, `de`); targets in one exact form each, regional for German, English, French, Italian and Portuguese (`de-CH`, `en-US`, `pt-BR`), with a script for Chinese and Serbian (`zh-Hans`, `sr-Latn`), a dialect for Swiss German (`gsw-u-sd-chzh`), bare for the others (`es`, `nl`, `sl`). Anything else is HTTP 404 `INVALID_LANGUAGE_PAIR` (`invalid_language_pair`); formal/informal for a target without it (`en-US`, `rm`, …) is HTTP 400 `FEATURE_ERROR` (`unsupported_feature`).
 
-`Services/LanguageMapping.cs` resolves Umbraco cultures with the SDK, **without guessing** (the same rules in every Supertext plugin):
+`Services/LanguageMapping.cs` resolves Umbraco cultures with the SDK (the same rules in every Supertext plugin; nothing is guessed beyond the SDK's obvious defaults):
 
-- **Target** (`Languages.Target(culture, mapping)`): the mapping `Supertext:Languages:<culture>:Code` wins (sent as it is, trimmed); else a culture that equals a Supertext code apart from case and `_`/`-` (`de-CH`, `fr_ch` → `fr-CH`, `es`); else the SDK throws `unsupported_language` (with `TargetLang`) and nothing is sent for that language. There are no default regions any more: `de` must be mapped (to `de-DE`, `de-CH` or `de-AT`); the old defaults `es-ES`, `sl-SI`, `zh-CN` were rejected by the live API.
+- **Target** (`Languages.Target(culture, mapping)`): the mapping `Supertext:Languages:<culture>:Code` wins (sent as it is, trimmed); else a culture that equals a Supertext code apart from case and `_`/`-` (`de-CH`, `fr_ch` → `fr-CH`, `es`); else the SDK's default target (SDK 0.4.0: `de` → `de-DE`, `en` → `en-US`, `es-ES` → `es`, `zh-CN` → `zh-Hans`; `Resolve` marks it `FromDefault`, the dashboard shows *Supertext default*); else the SDK throws `unsupported_language` (with `TargetLang`) and nothing is sent for that language (`en-IE`, `de-LI`, `gsw` need a mapping).
 - **Source** (`Languages.Source(culture, mapping)`): the same mapping, sent in its source form (`de-CH` → `de`, done by the SDK since 0.2.1), else the culture's Supertext source (`en-US` → `en`), else `unsupported_language`.
 - **Politeness** is sent as configured; `Languages.SupportsPoliteness(code)` tells the dashboard to warn where Supertext has none (rather than silently dropping the administrator's value).
 - `TranslationException` maps `unsupported_language` to `unsupportedLanguage` (argument: the culture) and `unsupported_feature` to `unsupportedFeature`; the dialog marks unmapped languages *not mapped* (`supertextCode: null` in `GET languages`) and doesn't preselect them.
@@ -142,9 +158,9 @@ node Tests/Localization/check-keys.mjs                   # UI strings complete i
 
 CI (`.github/workflows/ci.yml`) builds the package and the demo, runs the tests, syntax-checks the backoffice modules (and their language files), checks the UI strings and the demo entrypoint.
 
-`LanguageMappingTests` cover the no-guessing rules (exact codes, mapping in both directions, unmapped cultures, tone support); `ReportingTests` run `SupertextReporting` with an in-memory state store and a fake `HttpMessageHandler` for `GET features` and the center's `POST report` (installed report with versions and callback, no report without a change, 401/403 once, *Check API key*, reports off, broken storage, ping answers, site URL).
+`LanguageMappingTests` cover the language rules (exact codes, the SDK's defaults, mapping in both directions, unmapped cultures, tone support); `TranslationFileExchangeTests` the translation files glue (reference round trip, export with the collector's keys and the mapping, `ok` written, `source_changed` only with the option, untranslated/invalid/missing not written, other plugin and unknown reference refused, too large and bad files refused); `ReportingTests` run `SupertextReporting` with an in-memory state store and a fake `HttpMessageHandler` for `GET features` and the center's `POST report` (installed report with versions and callback, no report without a change, 401/403 once, *Check API key*, reports off, broken storage, ping answers, site URL).
 
-End to end (manual, before a release): fresh demo with the stand-in (`STAND_IN_PREFIX=1`), translate *Features* into all three languages as the editor, check every text field and block text carries the marker (and URLs and code don't), translate again (overwrite warning), publish German and open `/de/funktionen/`. `Tests/Docs/screenshots.mjs` runs most of this automatically.
+End to end (manual, before a release): fresh demo with the stand-in (`STAND_IN_PREFIX=1`), translate *Features* into all three languages as the editor, check every text field and block text carries the marker (and URLs and code don't), translate again (overwrite warning), publish German and open `/de/funktionen/`; export *Features* as XLIFF and HTML and import the HTML file again (summary, German draft). `Tests/Docs/screenshots.mjs` runs most of this automatically.
 
 ## Docs screenshots
 
@@ -225,6 +241,7 @@ Publishing to NuGet stays manual: `dotnet pack src/Supertext.Umbraco.Translation
 - No sync of later source changes; translate again to refresh a language.
 - Segment-level variants and block-level variance (element types that vary by culture inside an invariant block list) are not handled yet.
 - Media alt texts, dictionary items and tags are not translated.
+- *Export for translation* works on one page at a time (no bulk export yet). The docs have no screenshots of the export and import parts of the dialog yet (the local demo didn't start in the session that added them; `Tests/Docs/screenshots.mjs` should add them).
 - Human (professional) translation orders are not supported yet.
 - Tested on Umbraco 17.7 with the stand-in API; not yet against the live API or on Umbraco 18.
 - Settings (API key, language mapping, version reports) are read from appsettings.json / the environment; the dashboard shows them but can't edit them. An editable settings screen would add `afterSettingsSaved` reports and a select of Supertext languages per Umbraco language.

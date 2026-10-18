@@ -119,7 +119,7 @@ export class SupertextSettingsDashboardElement extends UmbLitElement {
                 <uui-table-cell>
                   ${l.supertextCode
                     ? html`<code>${l.supertextCode}</code>
-                        <span class="hint">${this.localize.term(l.mapped ? 'supertext_fromMapping' : 'supertext_exactMatch')}</span>`
+                        <span class="hint">${this.localize.term(l.mapped ? 'supertext_fromMapping' : l.fromDefault ? 'supertext_defaultTarget' : 'supertext_exactMatch')}</span>`
                     : html`<span class="fail">${this.localize.term('supertext_notMappedLong', l.isoCode)}</span>`}
                 </uui-table-cell>
                 <uui-table-cell>
