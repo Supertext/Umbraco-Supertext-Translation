@@ -1,6 +1,6 @@
 // The "Supertext" dashboard in the Settings section: the configuration as the package sees it, the latest
 // API key check (with a "Check API key" button), the version reports setting and the language mapping:
-// a Supertext language (and tone) per Umbraco language, saved with PUT settings/languages.
+// a Supertext language, tone and Translation review per Umbraco language, saved with PUT settings/languages.
 // Supertext:Languages in appsettings.json overrides the mapping; other settings live in appsettings.json /
 // the environment (docs/INSTALLATION.md).
 import { html, css, nothing, unsafeHTML } from '@umbraco-cms/backoffice/external/lit';
@@ -44,7 +44,11 @@ export class SupertextSettingsDashboardElement extends UmbLitElement {
   _initRows(languages) {
     const rows = {};
     for (const l of languages) {
-      rows[l.isoCode] = { code: l.configuredCode ? l.savedCode ?? '' : l.savedCode ?? l.suggestedCode ?? '', politeness: l.politeness };
+      rows[l.isoCode] = {
+        code: l.configuredCode ? l.savedCode ?? '' : l.savedCode ?? l.suggestedCode ?? '',
+        politeness: l.politeness,
+        review: l.review,
+      };
     }
     this._rows = rows;
   }
@@ -80,6 +84,7 @@ export class SupertextSettingsDashboardElement extends UmbLitElement {
       isoCode: l.isoCode,
       code: this._rows[l.isoCode].code || null,
       politeness: this._rows[l.isoCode].politeness,
+      review: this._rows[l.isoCode].review,
     }));
     const { data, error } = await umbHttpClient.put({
       url: `${API}/languages`,
@@ -173,9 +178,14 @@ export class SupertextSettingsDashboardElement extends UmbLitElement {
             <uui-table-head-cell>${this.localize.term('supertext_umbracoLanguage')}</uui-table-head-cell>
             <uui-table-head-cell>${this.localize.term('supertext_supertextLanguage')}</uui-table-head-cell>
             <uui-table-head-cell>${this.localize.term('supertext_tone')}</uui-table-head-cell>
+            <uui-table-head-cell>${this.localize.term('supertext_review')}</uui-table-head-cell>
           </uui-table-head>
           ${s.languages.map((l) => this._languageRow(l))}
         </uui-table>
+        <p class="hint review-help">
+          ${this.localize.term('supertext_reviewHelp')}
+          ${s.reviewUrl ? nothing : html`<span class="fail">${this.localize.term('supertext_reviewOff')}</span>`}
+        </p>
         <div class="actions">
           <uui-button
             look="primary"
@@ -234,6 +244,18 @@ export class SupertextSettingsDashboardElement extends UmbLitElement {
                   @change=${(e) => this._setRow(l.isoCode, { politeness: e.target.value })}></uui-select>`
               : html`<span class="hint">${target ? this.localize.term('supertext_noPoliteness') : '—'}</span>`}
         </uui-table-cell>
+        <uui-table-cell>
+          <uui-checkbox
+            label=${this.localize.term('supertext_review')}
+            ?checked=${l.configuredReview ?? row.review}
+            ?disabled=${l.configuredReview !== null && l.configuredReview !== undefined}
+            @change=${(e) => this._setRow(l.isoCode, { review: e.target.checked })}
+            ><span class="sr-only">${this.localize.term('supertext_review')}: ${l.name}</span></uui-checkbox
+          >
+          ${l.configuredReview !== null && l.configuredReview !== undefined
+            ? html`<div class="hint">${this.localize.term('supertext_reviewFromConfig', l.isoCode)}</div>`
+            : nothing}
+        </uui-table-cell>
       </uui-table-row>
     `;
   }
@@ -249,6 +271,9 @@ export class SupertextSettingsDashboardElement extends UmbLitElement {
     .fail a, .ok a { color: inherit; text-decoration: underline; }
     p { margin-top: 0; }
     uui-select { min-width: 18rem; }
+    code { white-space: nowrap; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .review-help { margin: var(--uui-size-space-4) 0 0; }
     .actions { display: flex; align-items: center; gap: var(--uui-size-space-4); margin-top: var(--uui-size-space-5); }
   `;
 }

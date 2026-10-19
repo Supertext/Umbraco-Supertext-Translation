@@ -14,6 +14,9 @@ public sealed class SavedLanguage
 
     /// <summary>"more", "less" or null/"default".</summary>
     public string? Politeness { get; set; }
+
+    /// <summary><i>Translation review</i>: translations into this culture go through Supertext's review service.</summary>
+    public bool Review { get; set; }
 }
 
 /// <summary>Where the language settings saved on Settings › Supertext are kept.</summary>
@@ -117,6 +120,12 @@ public sealed class LanguageSettings
     public string Politeness(string culture) =>
         Normalize(ConfiguredPoliteness(culture) ?? Saved(culture)?.Politeness);
 
+    /// <summary><i>Translation review</i> from appsettings.json (it wins over the screen), or null.</summary>
+    public bool? ConfiguredReview(string culture) => Configured(culture)?.Review;
+
+    /// <summary><i>Translation review</i>: appsettings, else the screen, else off.</summary>
+    public bool Review(string culture) => ConfiguredReview(culture) ?? Saved(culture)?.Review ?? false;
+
     /// <summary>False hides the language from the dialog (<c>Supertext:Languages:&lt;culture&gt;:Enabled</c>).</summary>
     public bool Enabled(string culture) => Configured(culture)?.Enabled ?? true;
 
@@ -150,7 +159,8 @@ public sealed class LanguageSettingsProvider(IOptionsMonitor<SupertextOptions> o
 /// <summary>One row of the language form on Settings › Supertext.</summary>
 /// <param name="Code">the chosen Supertext target code; empty: none chosen (the culture's exact match or default applies)</param>
 /// <param name="Politeness">more, less or default</param>
-public sealed record LanguageInput(string IsoCode, string? Code, string? Politeness);
+/// <param name="Review">Translation review on</param>
+public sealed record LanguageInput(string IsoCode, string? Code, string? Politeness, bool Review = false);
 
 /// <summary>Checks and converts what the language form sends (Umbraco-free, unit-tested).</summary>
 public static class LanguageForm
@@ -191,6 +201,7 @@ public static class LanguageForm
             {
                 Code = code,
                 Politeness = politeness == "default" ? null : politeness,
+                Review = row.Review,
             };
         }
         return saved;

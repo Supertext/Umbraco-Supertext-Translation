@@ -55,9 +55,12 @@ public sealed partial class SupertextSettingsController(
     /// <param name="SuggestedCode">the SDK's suggestion (exact match, else default; null: none), preselected while nothing is saved</param>
     /// <param name="ConfiguredCode">Supertext:Languages:&lt;culture&gt;:Code from appsettings.json; wins over the screen</param>
     /// <param name="ConfiguredPoliteness">Supertext:Languages:&lt;culture&gt;:Politeness from appsettings.json; wins over the screen</param>
+    /// <param name="Review">Translation review on (translations into it go through the review service while ReviewUrl is set)</param>
+    /// <param name="ConfiguredReview">Supertext:Languages:&lt;culture&gt;:Review from appsettings.json; wins over the screen</param>
     public sealed record LanguageModel(
         string IsoCode, string Name, bool IsDefault, string? SupertextCode, bool Mapped, string Politeness, bool? PolitenessSupported,
-        bool Enabled, bool FromDefault, string? SavedCode, string? SuggestedCode, string? ConfiguredCode, string? ConfiguredPoliteness);
+        bool Enabled, bool FromDefault, string? SavedCode, string? SuggestedCode, string? ConfiguredCode, string? ConfiguredPoliteness,
+        bool Review, bool? ConfiguredReview);
 
     /// <param name="Politeness">Supertext offers formal/informal for it</param>
     public sealed record TargetModel(string Code, string Name, bool Politeness);
@@ -65,6 +68,7 @@ public sealed partial class SupertextSettingsController(
     public sealed record SaveLanguagesRequest(LanguageInput[] Languages);
 
     /// <param name="ReleaseUrl">GitHub release of this version (X.Y.Z versions only)</param>
+    /// <param name="ReviewUrl">the review service for languages with Translation review on; null: review is off (Supertext:ReviewUrl empty)</param>
     public sealed record SettingsModel(
         string Version,
         string? ReleaseUrl,
@@ -72,6 +76,7 @@ public sealed partial class SupertextSettingsController(
         string SdkVersion,
         bool HasApiKey,
         string Endpoint,
+        string? ReviewUrl,
         KeyCheckModel? KeyCheck,
         ReportsModel Reports,
         IEnumerable<LanguageModel> Languages,
@@ -92,6 +97,7 @@ public sealed partial class SupertextSettingsController(
             Sdk.SdkInfo.Version,
             clients.HasApiKey,
             clients.Endpoint,
+            clients.ReviewEndpoint,
             ToModel(reporting.LastCheck()),
             Reports(siteUrl),
             languages,
@@ -125,7 +131,8 @@ public sealed partial class SupertextSettingsController(
             var r = LanguageMapping.Resolve(l.IsoCode, settings);
             return new LanguageModel(
                 l.IsoCode, l.CultureName, l.IsDefault, r.Code, r.Mapped, r.Politeness, r.PolitenessSupported, settings.Enabled(l.IsoCode), r.FromDefault,
-                settings.SavedCode(l.IsoCode), Languages.SuggestTarget(l.IsoCode), settings.ConfiguredCode(l.IsoCode), settings.ConfiguredPoliteness(l.IsoCode));
+                settings.SavedCode(l.IsoCode), Languages.SuggestTarget(l.IsoCode), settings.ConfiguredCode(l.IsoCode), settings.ConfiguredPoliteness(l.IsoCode),
+                settings.Review(l.IsoCode), settings.ConfiguredReview(l.IsoCode));
         }).ToList();
     }
 

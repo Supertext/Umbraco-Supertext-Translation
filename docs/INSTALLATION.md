@@ -12,7 +12,7 @@ For administrators setting up the package on an Umbraco site.
 | .NET | 10 |
 | Languages | At least two languages, and document types that **vary by culture** |
 | Supertext | An account with an API key — see [Set the API key](#2-set-the-api-key) |
-| Network | The web server must reach `https://api.supertext.com` over HTTPS |
+| Network | The web server must reach `https://api.supertext.com` over HTTPS (and, for [Translation review](#translation-review), Supertext's review service) |
 
 ## 1. Add the package
 
@@ -68,9 +68,9 @@ The package uses Umbraco's own multilingual setup:
 
 Turning on *Vary by culture* for a document type that already has content moves the values of its own properties to the default language. **Properties that come from a composition keep their old shared values**, which then no longer show. Re-save those pages in the default language, or move the values with a small migration; the demo does this in `DemoSetupService.MoveSharedValuesToEnglish`.
 
-4. **Supertext language per Umbraco language:** **Settings › Supertext**, box *Languages*. Every Umbraco language has a combo box with Supertext's languages (shown as *name (code)*, the names in your backoffice language) and, where Supertext offers it, a *Formal/informal* choice. Choose and click **Save**; the choice applies to the next translation, no restart needed. It is stored in Umbraco's database (`umbracoKeyValue`, key `Supertext.Umbraco.Translation.Languages`).
+4. **Supertext language per Umbraco language:** **Settings › Supertext**, box *Languages*. Every Umbraco language has a combo box with Supertext's languages (shown as *name (code)*, the names in your backoffice language), where Supertext offers it a *Formal/informal* choice, and a **Translation review** checkbox (see [Translation review](#translation-review)). Choose and click **Save**; the choice applies to the next translation, no restart needed. It is stored in Umbraco's database (`umbracoKeyValue`, key `Supertext.Umbraco.Translation.Languages`).
 
-   ![Settings › Supertext, box Languages: a combo box per Umbraco language (American English (en-US), Swiss High German (de-CH), Swiss French (fr-CH), Italian (Switzerland) (it-CH), each marked "same code"), formal address chosen for German, French and Italian, English without a formal/informal choice, and the Save button](images/supertext-languages.png)
+   ![Settings › Supertext, box Languages: a combo box per Umbraco language (American English (en-US), Swiss High German (de-CH), Swiss French (fr-CH), Italian (Switzerland) (it-CH), each marked "same code"), formal address chosen for German, French and Italian, English without a formal/informal choice, a Translation review checkbox per language (none ticked) with its explanation below the table, and the Save button](images/supertext-languages.png)
 
    Supertext accepts exactly these target codes (from its language list, October 2026); the combo box offers exactly these:
 
@@ -99,17 +99,32 @@ Turning on *Vary by culture* for a document type that already has content moves 
 
    *Formal/informal* (formal = Sie/vous/Lei, informal = du/tu, default = Supertext decides) is offered only for Supertext languages that have it; English, Swiss German, Romansh, Albanian and Serbian don't.
 
-   **Override in appsettings.json** (for automated setups): `Supertext:Languages:<culture>` wins over the screen, value by value. A language whose `Code` (or `Politeness`) is set there shows that value on the dashboard, marked *set in appsettings.json*, instead of the combo box. `Enabled: false` hides a language from the dialog (appsettings only).
+   **Override in appsettings.json** (for automated setups): `Supertext:Languages:<culture>` wins over the screen, value by value. A language whose `Code` (or `Politeness`, `Review`) is set there shows that value on the dashboard, marked *set in appsettings.json*, instead of the combo box. `Enabled: false` hides a language from the dialog (appsettings only).
 
 ```json
 "Supertext": {
   "Languages": {
     "de": { "Code": "de-CH", "Politeness": "more" },
     "es-ES": { "Code": "es" },
+    "fr-CH": { "Review": true },
     "en-GB": { "Enabled": false }
   }
 }
 ```
+
+## Translation review
+
+With **Translation review**, people check the translations on the website itself and correct them there: customers or Supertext linguists open the original and the translated page side by side in Chrome with the *Supertext Localization Review* extension and fix texts in a side panel. Their corrections come back into Umbraco.
+
+Turn it on per language that is translated **into**: **Settings › Supertext**, box *Languages*, tick **Translation review** for that language → **Save**. Untick it to turn it off again; nothing else changes. (In appsettings.json: `Supertext:Languages:<culture>:Review`, which wins over the checkbox.)
+
+- Translations into that language then go through Supertext's review service instead of directly to Supertext. It answers exactly like Supertext and passes everything on with your API key, so billing, languages, formal/informal and error messages stay the same.
+- The review service keeps every translation of your account. A text it has translated before gets the same translation again (without a new Supertext call), and once a reviewer has corrected it, the corrected text.
+- **Corrections arrive with the next translation:** after a review, translate the pages into that language again (**Translate with Supertext**, replacing the existing language) to write the corrections into Umbraco as drafts. As always, translating again overwrites manual changes in the translated texts.
+- Reviewers get a review link for your site from Supertext; nothing to set up in Umbraco.
+- The review service works with keys of the **live** Supertext API. With a staging or testing `Endpoint`, leave review off.
+- *Export for translation* and *Import translation* don't use the review service. The API key check still goes directly to Supertext.
+- `Supertext:ReviewUrl` is the review service's address (default: Supertext's review service). Set it to `""` to turn review off for every language; the dashboard then says so.
 
 ## Interface languages
 
@@ -159,11 +174,13 @@ All under `Supertext` in appsettings.json (or environment variables like `Supert
 | Setting | Default | |
 | --- | --- | --- |
 | `ApiKey` | `""` | API key; `SUPERTEXT_API_KEY` wins |
-| `Endpoint` | `https://api.supertext.com/v1/` | API base URL; `SUPERTEXT_API_ENDPOINT` wins |
+| `Endpoint` | `https://api.supertext.com/v1/` | API base URL; `SUPERTEXT_API_ENDPOINT` wins. For [Translation review](#translation-review) use the checkbox instead |
+| `ReviewUrl` | Supertext's review service | Address of the review service for languages with *Translation review* on; `SUPERTEXT_REVIEW_URL` wins (an empty variable keeps the setting). `""` turns review off for every language. Only change it when Supertext gives you another address |
 | `PollIntervalSeconds` | `2` | Seconds between status checks |
 | `PollTimeoutSeconds` | `240` | Maximum seconds to wait for one language |
 | `Languages.<culture>.Code` | not set: the choice on Settings › Supertext | Overrides the Supertext language chosen on **Settings › Supertext** (e.g. `de` → `de-CH`, `en-IE` → `en-GB`; see [Languages](#3-languages)) |
 | `Languages.<culture>.Politeness` | not set: the choice on Settings › Supertext | Overrides *Formal/informal*: `more`, `less` or `default` |
+| `Languages.<culture>.Review` | not set: the checkbox on Settings › Supertext | Overrides *Translation review*: `true` or `false` |
 | `Languages.<culture>.Enabled` | `true` | `false` hides the language from the dialog |
 | `SendVersionReports` | `true` | *Send version information to Supertext* (see [Version information sent to Supertext](#version-information-sent-to-supertext)); `SUPERTEXT_VERSION_REPORTS=0`/`1` wins |
 | `PlainTextEditors` | `Umbraco.TextBox`, `Umbraco.TextArea` | Property editors translated as plain text |
@@ -195,6 +212,8 @@ Translations already made stay in place; they are ordinary Umbraco content.
 | *The language … has no Supertext language yet* / *not mapped* | The Umbraco culture has no obvious Supertext language: choose one in its combo box on **Settings › Supertext** (see [Languages](#3-languages)) and save. |
 | *Supertext does not support this language pair* | A code from `Supertext:Languages:<culture>:Code` in appsettings.json that Supertext doesn't offer (e.g. `es-ES` instead of `es`, `zh-CN` instead of `zh-Hans`), or the same language as the source: fix or remove it (the combo box only offers valid codes). |
 | *Supertext offers no formal or informal tone for this language* | `Politeness` in appsettings.json is `more`/`less` for a language without it (English, Swiss German, Romansh, Albanian, Serbian); set it to `default` or remove it. |
+| *Authentication failed* only for languages with *Translation review* | The review service only works with keys of the live Supertext API: with a staging or testing `Endpoint`, leave review off. |
+| Reviewers' corrections don't show up in Umbraco | They arrive with the next translation: translate the page into that language again. Check that the language's *Translation review* is ticked (and that `ReviewUrl` isn't empty). |
 | *Could not save the languages* (Settings › Supertext) | The user needs access to the Settings section; check the log for the reason. |
 | *Supertext rejected the API key* (Settings › Supertext) | Wrong, incomplete or revoked key: copy it again or [generate a new one](https://www.supertext.com/en/integrations/api), restart, then **Check API key**. |
 | *Supertext can't be reached* / *answered with an error* (Settings › Supertext) | The server can't reach `https://api.supertext.com` (proxy, firewall) or Supertext had a problem; check again later. |
@@ -209,4 +228,4 @@ Errors are logged with the prefix `Supertext:` (Settings › Log Viewer).
 
 ## Security note
 
-The API key is read only from the environment or appsettings and sent only to the configured endpoint; it is never part of a version report. The ping route is the package's only public route; it reads nothing and answers only the challenge. The backoffice API checks the editor's Update permission for the document and target languages before translating. Saving the language mapping on Settings › Supertext needs access to the Settings section.
+The API key is read only from the environment or appsettings and sent only to the configured endpoint (and, for languages with Translation review, the review service, which passes it on to Supertext); it is never part of a version report. The ping route is the package's only public route; it reads nothing and answers only the challenge. The backoffice API checks the editor's Update permission for the document and target languages before translating. Saving the language mapping on Settings › Supertext needs access to the Settings section.

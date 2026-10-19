@@ -117,6 +117,11 @@ export default {
     saveLanguages: 'Save',
     languagesSaved: 'Languages saved.',
     saveFailed: 'Could not save the languages.',
+    review: 'Translation review',
+    reviewHelp:
+      'Translation review: translations into a ticked language go through Supertext\'s review service, so reviewers can check and correct them on the website with the Supertext Localization Review extension. Their corrections are used the next time the page is translated.',
+    reviewFromConfig: (culture) => `set in appsettings.json (Supertext:Languages:${culture}:Review)`,
+    reviewOff: 'Translation review is turned off on this site (Supertext:ReviewUrl is empty).',
     // Export for translation / import translation (XLIFF 1.2 or HTML files)
     exportForTranslation: 'Export for translation',
     exportHint: 'Download the texts of the source language as a file for a translator or a translation tool, or upload it to Supertext\'s web app, for the target languages ticked above. Import the translated file below.',

@@ -45,6 +45,8 @@ If a language already has content, the dialog marks it **has content**. Translat
 
 Your published version stays online until you publish the new draft.
 
+**Translation review:** if your administrator turned on *Translation review* for a language, reviewers (your colleagues or Supertext linguists) check and correct the translations on the website. Their corrections come into Umbraco the next time you translate the page into that language: after a review, translate it again (replacing the language) and publish. Texts reviewed once keep their corrected wording in later translations.
+
 ## Export for translation and import a translated file
 
 Instead of translating with Supertext's AI right away, you can download the page's texts as a file, have it translated elsewhere (by a translator, in a translation tool such as Trados, memoQ or Phrase, or in Supertext's web app) and import the translated file again. Both are at the bottom of the **Translate with Supertext** dialog.

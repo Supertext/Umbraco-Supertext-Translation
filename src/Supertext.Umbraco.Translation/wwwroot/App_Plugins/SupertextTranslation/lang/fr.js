@@ -93,7 +93,7 @@ export default {
     pingUrl: 'Supertext vérifie que le site est joignable à l’adresse',
     languagesHeadline: 'Langues',
     languagesHint:
-      'Choisissez la langue Supertext de chaque langue Umbraco ; elle sert aussi lorsque la langue est la langue source. Est présélectionnée la langue Supertext correspondante ou la langue usuelle (fr → français (France)) ; choisissez-en une autre si nécessaire, p. ex. français (Suisse). « — choisir — » : Supertext n’a pas de langue usuelle pour cette langue, choisissez-en une avant de traduire. Les entrées sous Supertext:Languages dans appsettings.json l’emportent sur cette page.',
+      'Choisissez la langue Supertext de chaque langue Umbraco ; elle sert aussi lorsque la langue est la langue source. Est présélectionnée la langue Supertext correspondante ou la langue usuelle (fr → français (France)) ; choisissez-en une autre si nécessaire, p. ex. français (Suisse). « — choisir — » : Supertext n’a pas de langue usuelle pour cette langue, choisissez-en une avant de traduire. Les entrées sous Supertext:Languages dans appsettings.json l’emportent sur cette page.',
     umbracoLanguage: 'Langue Umbraco',
     supertextLanguage: 'Langue Supertext',
     tone: 'Formel/informel',
@@ -112,6 +112,11 @@ export default {
     saveLanguages: 'Enregistrer',
     languagesSaved: 'Langues enregistrées.',
     saveFailed: 'Les langues n’ont pas pu être enregistrées.',
+    review: 'Révision des traductions',
+    reviewHelp:
+      'Révision des traductions : les traductions vers une langue cochée passent par le service de révision de Supertext, afin que les réviseurs puissent les vérifier et les corriger directement sur le site avec l’extension Supertext Localization Review. Leurs corrections sont reprises lors de la prochaine traduction de la page.',
+    reviewFromConfig: (culture) => `défini dans appsettings.json (Supertext:Languages:${culture}:Review)`,
+    reviewOff: 'La révision des traductions est désactivée sur ce site (Supertext:ReviewUrl est vide).',
     // Exporter pour traduction / importer une traduction (fichiers XLIFF 1.2 ou HTML)
     exportForTranslation: 'Exporter pour traduction',
     exportHint: 'Téléchargez les textes de la langue source pour les langues cibles cochées ci-dessus dans un fichier pour un traducteur ou un outil de traduction, ou chargez-le dans l’application web de Supertext. Importez ensuite le fichier traduit ci-dessous.',

@@ -109,7 +109,8 @@ public sealed class ContentTranslator(
             var sourceCode = LanguageMapping.Source(source, languages);
             var politeness = LanguageMapping.PolitenessFor(target, languages);
             // One document per language; the SDK splits only above ~900k characters.
-            var translated = await clients.Create().TranslateTextsAsync(segments.Keyed(), code, sourceCode, politeness, cancellationToken: ct);
+            // Translation review on: through Supertext's review service (the whole round trip on that client).
+            var translated = await clients.Create(languages.Review(target)).TranslateTextsAsync(segments.Keyed(), code, sourceCode, politeness, cancellationToken: ct);
             foreach (var (key, text) in translated)
             {
                 segments.SetResult(key, text);

@@ -111,6 +111,11 @@ export default {
     saveLanguages: 'Speichern',
     languagesSaved: 'Sprachen gespeichert.',
     saveFailed: 'Die Sprachen konnten nicht gespeichert werden.',
+    review: 'Übersetzungsprüfung',
+    reviewHelp:
+      'Übersetzungsprüfung: Übersetzungen in eine angehakte Sprache laufen über den Prüfdienst von Supertext, damit Prüferinnen und Prüfer sie mit der Erweiterung Supertext Localization Review direkt auf der Website kontrollieren und korrigieren können. Ihre Korrekturen werden beim nächsten Übersetzen der Seite übernommen.',
+    reviewFromConfig: (culture) => `in appsettings.json festgelegt (Supertext:Languages:${culture}:Review)`,
+    reviewOff: 'Die Übersetzungsprüfung ist auf dieser Website ausgeschaltet (Supertext:ReviewUrl ist leer).',
     // Für Übersetzung exportieren / Übersetzung importieren (XLIFF 1.2 oder HTML)
     exportForTranslation: 'Für Übersetzung exportieren',
     exportHint: 'Laden Sie die Texte der Ausgangssprache für die oben angekreuzten Zielsprachen als Datei für eine Übersetzerin, einen Übersetzer oder ein Übersetzungstool herunter, oder laden Sie sie in die Web-App von Supertext hoch. Importieren Sie die übersetzte Datei unten.',
