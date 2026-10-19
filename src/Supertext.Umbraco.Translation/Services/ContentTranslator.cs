@@ -37,6 +37,7 @@ public sealed class ContentTranslator(
     IContentTypeService contentTypeService,
     ILanguageService languageService,
     SupertextClientFactory clients,
+    LanguageSettingsProvider languageSettings,
     IOptionsMonitor<SupertextOptions> options,
     ILogger<ContentTranslator> logger)
 {
@@ -101,10 +102,12 @@ public sealed class ContentTranslator(
         var segments = collected.Segments;
         if (segments.Count > 0)
         {
-            // The mapping, an exact Supertext code or the SDK's default, else unsupported_language (nothing is sent).
-            var code = LanguageMapping.Target(target, Options);
-            var sourceCode = LanguageMapping.Source(source, Options);
-            var politeness = LanguageMapping.PolitenessFor(target, Options);
+            // The mapping (Settings › Supertext, appsettings wins), an exact Supertext code or the SDK's default,
+            // else unsupported_language (nothing is sent).
+            var languages = languageSettings.Current();
+            var code = LanguageMapping.Target(target, languages);
+            var sourceCode = LanguageMapping.Source(source, languages);
+            var politeness = LanguageMapping.PolitenessFor(target, languages);
             // One document per language; the SDK splits only above ~900k characters.
             var translated = await clients.Create().TranslateTextsAsync(segments.Keyed(), code, sourceCode, politeness, cancellationToken: ct);
             foreach (var (key, text) in translated)
@@ -429,8 +432,9 @@ public sealed class ContentTranslator(
     {
         var content = contentService.GetById(documentKey) ?? throw new TranslationException("documentNotFound", "Document not found.");
         var languages = await languageService.GetAllAsync();
+        var settings = languageSettings.Current();
         return languages
-            .Where(l => !Options.Languages.TryGetValue(l.IsoCode, out var o) || o.Enabled)
+            .Where(l => settings.Enabled(l.IsoCode))
             .Select(l => (l.IsoCode, l.CultureName, l.IsDefault, content.IsCultureAvailable(l.IsoCode)))
             .ToList();
     }

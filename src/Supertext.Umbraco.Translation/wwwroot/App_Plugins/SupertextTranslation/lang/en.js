@@ -57,13 +57,13 @@ export default {
     error_timeout: 'Timed out waiting for the Supertext translation.',
     error_emptyTranslation: 'The translation from Supertext was empty or incomplete.',
 
-    // Languages (no guessing: the mapping Supertext:Languages:<culture>:Code, else an exact Supertext code).
+    // Languages: the mapping (Settings › Supertext, Supertext:Languages:<culture>:Code wins), else an exact Supertext code, else the SDK default.
     notMapped: 'not mapped',
     notMappedHint: (culture) => `${culture} has no Supertext language yet. Your administrator can map it on Settings › Supertext.`,
     error_unsupportedLanguage: (language) =>
-      `The language ${language} has no Supertext language yet. Ask your administrator to map it (Supertext:Languages:${language}:Code in appsettings.json, e.g. "de-CH").`,
+      `The language ${language} has no Supertext language yet. Ask your administrator to choose one on Settings › Supertext.`,
     error_unsupportedFeature:
-      'Supertext offers no formal or informal tone for this language. Ask your administrator to set it to the default tone (Supertext:Languages:<culture>:Politeness).',
+      'Supertext offers no formal or informal tone for this language. Ask your administrator to set it to the default tone on Settings › Supertext.',
 
     // Supertext dashboard (Settings section)
     dashboardLabel: 'Supertext',
@@ -98,19 +98,25 @@ export default {
     pingUrl: 'Supertext checks that the site is reachable at',
     languagesHeadline: 'Languages',
     languagesHint:
-      'Each Umbraco language needs a Supertext language: its ISO code if that is a Supertext code (e.g. de-CH, es), otherwise an entry Supertext:Languages:<culture>:Code in appsettings.json. Languages without one can\'t be translated.',
+      'Choose the Supertext language for each Umbraco language; it is also used when the language is the source. Preselected is the matching Supertext language or the usual one (de → German (Germany)); choose another one if needed, e.g. Swiss German. “— choose —”: Supertext has no usual language for this language, choose one before translating. Entries under Supertext:Languages in appsettings.json win over this screen.',
     umbracoLanguage: 'Umbraco language',
     supertextLanguage: 'Supertext language',
     tone: 'Formal/informal',
     fromMapping: 'from the mapping',
     defaultTarget: 'Supertext default',
     exactMatch: 'same code',
-    notMappedLong: (culture) => `Not mapped: add Supertext:Languages:${culture}:Code`,
+    notMappedLong: (culture) => `Choose a Supertext language before translating into ${culture}.`,
     formal: 'formal',
     informal: 'informal',
     defaultTone: 'default',
     noPoliteness: 'Supertext offers no formal/informal choice for this language',
     hiddenInDialog: 'hidden in the dialog',
+    choose: '— choose —',
+    fromConfig: (culture) => `set in appsettings.json (Supertext:Languages:${culture}:Code)`,
+    politenessFromConfig: (culture) => `set in appsettings.json (Supertext:Languages:${culture}:Politeness)`,
+    saveLanguages: 'Save',
+    languagesSaved: 'Languages saved.',
+    saveFailed: 'Could not save the languages.',
     // Export for translation / import translation (XLIFF 1.2 or HTML files)
     exportForTranslation: 'Export for translation',
     exportHint: 'Download the texts of the source language as a file for a translator or a translation tool, or upload it to Supertext\'s web app, for the target languages ticked above. Import the translated file below.',

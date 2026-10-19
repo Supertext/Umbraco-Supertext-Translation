@@ -60,6 +60,7 @@ public sealed class DemoSetupService(
             MoveSharedValuesToEnglish(sp.GetRequiredService<IContentService>());
             await EnsureDomainsAsync(sp.GetRequiredService<IContentService>(), sp.GetRequiredService<IDomainService>());
             await EnsureAccountsAsync(sp.GetRequiredService<IUserService>());
+            EnsureLanguageSettings(sp.GetRequiredService<Supertext.Umbraco.Translation.Services.ILanguageSettingsStore>());
             logger.LogInformation("[demo] setup complete");
         }
         catch (Exception e)
@@ -80,6 +81,23 @@ public sealed class DemoSetupService(
             var result = await languageService.CreateAsync(new Language(iso, name), Constants.Security.SuperUserKey);
             logger.LogInformation("[demo] language {Iso}: {Status}", iso, result.Status);
         }
+    }
+
+    /// <summary>
+    /// Formal address for the target languages, as if chosen on Settings › Supertext (their Supertext
+    /// language is their own code). Only while nothing is saved there, so changes made on the screen stay.
+    /// </summary>
+    private void EnsureLanguageSettings(Supertext.Umbraco.Translation.Services.ILanguageSettingsStore store)
+    {
+        if (store.Load().Count > 0)
+        {
+            return;
+        }
+        store.Save(TargetLanguages.ToDictionary(
+            t => t.IsoCode,
+            t => new Supertext.Umbraco.Translation.Services.SavedLanguage { Politeness = "more" },
+            StringComparer.OrdinalIgnoreCase));
+        logger.LogInformation("[demo] Supertext languages: formal address for {Languages}", string.Join(", ", TargetLanguages.Select(t => t.IsoCode)));
     }
 
     /// <summary>

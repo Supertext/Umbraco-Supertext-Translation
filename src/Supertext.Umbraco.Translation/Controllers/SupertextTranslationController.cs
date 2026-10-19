@@ -31,7 +31,7 @@ public sealed class SupertextTranslationController(
     IAuthorizationService authorizationService,
     IBackOfficeSecurityAccessor backOfficeSecurityAccessor,
     SupertextReporting reporting,
-    IOptionsMonitor<SupertextOptions> options,
+    LanguageSettingsProvider languageSettings,
     IOptionsMonitor<WebRoutingSettings> webRouting) : ManagementApiControllerBase
 {
     /// <param name="SupertextCode">the Supertext code it is sent as; null when the language isn't mapped (can't be translated)</param>
@@ -72,7 +72,8 @@ public sealed class SupertextTranslationController(
         {
             var languages = await translator.GetLanguagesAsync(documentId);
             Report();
-            return Ok(languages.Select(l => new LanguageModel(l.IsoCode, l.Name, l.IsDefault, l.Exists, LanguageMapping.Resolve(l.IsoCode, options.CurrentValue).Code)));
+            var settings = languageSettings.Current();
+            return Ok(languages.Select(l => new LanguageModel(l.IsoCode, l.Name, l.IsDefault, l.Exists, LanguageMapping.Resolve(l.IsoCode, settings).Code)));
         }
         catch (TranslationException e)
         {
@@ -146,7 +147,7 @@ public sealed class SupertextTranslationController(
         try
         {
             var segments = translator.CollectForExport(request.DocumentId, request.SourceCulture);
-            var o = options.CurrentValue;
+            var o = languageSettings.Current();
             var sourceCode = TranslationFileExchange.LanguageCode(() => LanguageMapping.Source(request.SourceCulture, o), request.SourceCulture);
             var jobs = targets.Select(t => TranslationFileExchange.Job(request.DocumentId, request.SourceCulture, t, sourceCode,
                 TranslationFileExchange.LanguageCode(() => LanguageMapping.Target(t, o), t), segments)).ToList();
